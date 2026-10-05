@@ -1,0 +1,4695 @@
+<!--
+SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process VLM WebUI - Video Analysis</title>
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="favicon/favicon.svg">
+    <link rel="icon" type="image/x-icon" href="favicon/favicon.ico">
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon/favicon-96x96.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+    <link rel="manifest" href="favicon/site.webmanifest">
+
+    <style>
+        :root {
+            /* NVIDIA Brand Colors */
+            --nvidia-green: #76B900;
+            --nvidia-green-dark: #5E9400;
+            --nvidia-green-light: #8BC919;
+
+            /* Dark theme (default - NVIDIA style) */
+            --bg-primary: #000000;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1A1A1A;
+            --text-primary: #FFFFFF;
+            --text-secondary: #CCCCCC;
+            --text-muted: #999999;
+            --border-color: #333333;
+            --card-bg: #111111;
+            --card-hover: #1A1A1A;
+            --accent-color: #76B900;
+            --accent-hover: #5E9400;
+            --warning-color: #FFA726; /* Orange - better contrast on dark background */
+            --error-color: #EF5350;
+        }
+
+        body.light-theme {
+            /* Light theme (NVIDIA NGC style) */
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F8F8F8;
+            --bg-tertiary: #F0F0F0;
+            --text-primary: #000000;
+            --text-secondary: #333333;
+            --text-muted: #666666;
+            --border-color: #E0E0E0;
+            --card-bg: #FFFFFF;
+            --card-hover: #F8F8F8;
+            --accent-color: #76B900;
+            --accent-hover: #5E9400;
+            --warning-color: #F57C00; /* Darker orange - better contrast on light background */
+            --error-color: #D32F2F;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Code styling for hostname */
+        code {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 2px 2px;
+            border-radius: 6px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.8em;
+            color: var(--accent-color);
+            white-space: nowrap;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent-color);
+            letter-spacing: -0.5px;
+            line-height: 1;
+        }
+
+        .title-section h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .title-section .subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--card-hover);
+        }
+
+        .settings-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .settings-btn:hover {
+            background: var(--card-hover);
+        }
+
+        /* Settings Modal */
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .settings-modal.show {
+            display: flex;
+        }
+
+        .settings-dialog {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .settings-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .settings-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .settings-close:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .settings-body {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+
+        .settings-section {
+            margin-bottom: 24px;
+        }
+
+        .settings-section:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Full width section for sections that need it */
+        .settings-section.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .settings-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+            gap: 16px;
+        }
+
+        .settings-item:last-child {
+            border-bottom: none;
+        }
+
+        .settings-item-label {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .settings-item > div:first-child {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .settings-item-description {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+            background-color: white;
+        }
+
+        /* Settings Dropdown */
+        .settings-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            width: 180px;
+            flex-shrink: 0;
+        }
+
+        .settings-select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        /* Main Layout */
+        .container {
+            display: flex;
+            height: calc(100vh - 65px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 350px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            overflow-x: visible;
+            padding: 20px;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: visible;
+        }
+
+        .panel-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .panel-header:hover {
+            background: var(--card-hover);
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-icon {
+            font-size: 16px;
+        }
+
+        .panel-toggle {
+            color: var(--text-muted);
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+
+        .panel-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        /* Transcript panel */
+        .transcript-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .transcript-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .transcript-dot.recording {
+            background: #ef4444;
+            animation: transcript-pulse 1.8s ease-in-out infinite;
+        }
+
+        .transcript-dot.error {
+            background: #f59e0b;
+            animation: none;
+        }
+
+        @keyframes transcript-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.25; }
+        }
+
+        .transcript-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .transcript-stat {
+            background: var(--card-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 6px;
+            text-align: center;
+        }
+
+        .transcript-stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-color);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .transcript-stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-top: 2px;
+        }
+
+        .transcript-file {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            word-break: break-all;
+            margin-bottom: 12px;
+        }
+
+        .transcript-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .transcript-actions .btn {
+            flex: 1;
+            font-size: 12px;
+            padding: 8px 10px;
+        }
+
+        .transcript-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .transcript-toggle-row .input-hint {
+            margin: 0;
+        }
+
+        .panel-content {
+            padding: 16px;
+            max-height: 1000px;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+            overflow: visible;
+        }
+
+        .panel-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+            padding: 0 16px;
+            overflow: hidden;
+        }
+
+        #apiKeyField {
+            max-height: 100px;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+            overflow: hidden;
+        }
+
+        #apiKeyField.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        #apiKeyToggle {
+            transition: transform 0.2s;
+        }
+
+        #apiKeyToggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            letter-spacing: 0.3px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border 0.2s;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+        }
+
+        /* Prevent browser autofill blue background */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-box-shadow: 0 0 0 1000px var(--bg-tertiary) inset !important;
+            -webkit-text-fill-color: var(--text-primary) !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        /* Disabled input styling */
+        input:disabled,
+        select:disabled,
+        textarea:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            line-height: 1.5;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+            border: 1px solid var(--accent-color);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(118, 185, 0, 0.3);
+        }
+
+        /* Tab-style underline (for future use) */
+        .tab-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .tab-item.active {
+            border-bottom-color: var(--accent-color);
+        }
+
+        .tab-item:hover {
+            border-bottom-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--card-hover);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover:not(:disabled) {
+            background: var(--card-hover);
+            border-color: var(--accent-color);
+            transform: scale(1.1);
+        }
+
+        .icon-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .icon-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.4;
+            background: var(--bg-secondary);
+        }
+
+        .input-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Input Source Tabs */
+        .input-source-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 16px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        /* Beta Badge - Small and Rotated */
+        .beta-badge {
+            display: inline-block;
+            background: var(--warning-color);
+            color: #000;
+            font-size: 7px;
+            font-weight: 700;
+            padding: 1px 1px;
+            border-radius: 2px;
+            margin-left: -6px;
+            vertical-align: super;
+            letter-spacing: 0.3px;
+            transform: rotate(50deg);
+            transform-origin: center;
+        }
+
+        .input-source-tab {
+            flex: 1;
+            padding: 10px 2px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .input-source-tab:hover {
+            color: var(--text-primary);
+            background: rgba(118, 185, 0, 0.05);
+        }
+
+        .input-source-tab.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+        }
+
+        /* Tooltip */
+        .tooltip-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .tooltip-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--border-color);
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 600;
+            line-height: 1;
+            cursor: help;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            transform: translateY(-1px);
+        }
+
+        .tooltip-icon:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            position: fixed;
+            padding: 12px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--accent-color);
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            white-space: normal;
+            width: 380px;
+            max-width: calc(100vw - 40px);
+            z-index: 10000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            transition: opacity 0.2s, visibility 0.2s;
+            pointer-events: none;
+        }
+
+        .tooltip-text strong {
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .tooltip-wrapper:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.connected {
+            background: rgba(118, 185, 0, 0.15);
+            color: var(--accent-color);
+        }
+
+        .status-badge.disconnected {
+            background: rgba(107, 114, 128, 0.2);
+            color: var(--text-muted);
+        }
+
+        .status-badge.processing {
+            background: rgba(118, 185, 0, 0.15);
+            color: var(--accent-color);
+        }
+
+        /* Recording pill - header control for transcript recording */
+        .rec-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-family: inherit;
+            border: 1px solid transparent;
+            cursor: pointer;
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+        }
+
+        .rec-pill:hover:not(:disabled) {
+            border-color: currentColor;
+        }
+
+        .rec-pill:disabled {
+            cursor: default;
+            opacity: 0.6;
+        }
+
+        /* Paused wins the dot animation; error wins the colour (declared last) */
+        .rec-pill.paused {
+            background: rgba(107, 114, 128, 0.2);
+            color: var(--text-muted);
+        }
+
+        .rec-pill.error {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+
+        .rec-pill-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            flex-shrink: 0;
+        }
+
+        .rec-pill:not(.paused) .rec-pill-dot {
+            animation: transcript-pulse 1.8s ease-in-out infinite;
+        }
+
+        .rec-pill-count {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+            opacity: 0.85;
+        }
+
+        /* Video Display */
+        .video-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        video {
+            width: 100%;
+            display: block;
+            background: #000;
+            transition: transform 0.3s ease;
+        }
+
+        /* Video Overlay Text */
+        .video-overlay {
+            position: absolute;
+            left: 0;
+            right: 0;
+            padding: 16px 20px;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4));
+            color: white;
+            font-size: 16px;
+            line-height: 1.5;
+            pointer-events: none;
+            display: none;
+            z-index: 10;
+        }
+
+        .video-overlay.top {
+            top: 0;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4));
+        }
+
+        .video-overlay.bottom {
+            bottom: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4));
+        }
+
+        .video-overlay.show {
+            display: block;
+        }
+
+        .video-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .video-control-btn {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s;
+        }
+
+        .video-control-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: var(--accent-color);
+        }
+
+        .video-control-btn.active {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        /* Generation Result */
+        .result-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: opacity 0.3s ease, filter 0.3s ease;
+        }
+
+        .result-card.cloud-api {
+            opacity: 0.5;
+            filter: grayscale(0.3);
+        }
+
+        /* System Stats Card - Background Image */
+        #systemStatsCard {
+            position: relative;
+            overflow: hidden;
+        }
+
+        #systemStatsCard::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background-image: var(--system-bg-image, none);
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: bottom right 80px;
+            opacity: 0.08;
+            filter: blur(2px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body.light-theme #systemStatsCard::before {
+            opacity: 0.05;
+        }
+
+        #systemStatsCard > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .api-preset-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .api-preset-item:hover {
+            background: var(--hover-bg);
+        }
+
+        .api-preset-item strong {
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .result-header-left {
+            flex: 1;
+        }
+
+        .result-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.3px;
+            margin-bottom: 6px;
+        }
+
+        .result-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .result-prompt {
+            font-size: 13px;
+            color: var(--text-primary);
+            margin-top: 16px;
+            margin-bottom: 12px;
+            margin-left: auto;
+            margin-right: 0;
+            padding: 6px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px 16px 4px 16px;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+
+        .result-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            transition: opacity 3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+            min-height: 120px;
+            margin-top: 12px;
+            margin-left: 0;
+            margin-right: auto;
+            padding: 14px 18px;
+            background: linear-gradient(135deg, rgba(118, 185, 71, 0.15) 0%, rgba(147, 112, 219, 0.12) 100%);
+            border: 1px solid rgba(118, 185, 71, 0.3);
+            border-radius: 16px 16px 16px 4px;
+            max-width: 90%;
+            word-wrap: break-word;
+            position: relative; /* For absolute positioning of button */
+        }
+
+        .result-text-content {
+            /* Content wrapper - this is what gets updated, not the parent */
+            width: 100%;
+        }
+
+        /* Embedded markdown toggle button */
+        .markdown-toggle-embedded {
+            position: absolute;
+            top: -1px; /* Overlap balloon's top border */
+            right: -1px; /* Overlap balloon's right border */
+            background: var(--bg-secondary);
+            border-top: 1px solid rgba(118, 185, 71, 0.3);
+            border-right: 1px solid rgba(118, 185, 71, 0.3);
+            border-left: 1px solid rgba(118, 185, 71, 0.3);
+            border-bottom: 1px solid rgba(118, 185, 71, 0.3);
+            border-radius: 0 16px 0 0; /* Match top-right corner of balloon */
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+            z-index: 10;
+            line-height: 1.2;
+        }
+
+        .markdown-toggle-embedded:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .markdown-toggle-embedded .lucide {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* Copy to clipboard button - overlay style in lower right */
+        .copy-button-embedded {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 6px 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            z-index: 10;
+            opacity: 0.4;
+        }
+
+        .copy-button-embedded:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: scale(1.05);
+        }
+
+        .copy-button-embedded:active {
+            transform: scale(0.95);
+        }
+
+        .copy-button-embedded .lucide {
+            width: 14px;
+            height: 14px;
+        }
+
+        .copy-button-embedded.copied {
+            background: rgba(118, 185, 0, 0.6);
+            border-color: rgba(118, 185, 0, 0.4);
+        }
+
+        .copy-button-embedded.copied .lucide {
+            animation: checkmark 0.3s ease;
+        }
+
+        @keyframes checkmark {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Markdown styling */
+        .result-text-content.markdown-rendered h1,
+        .result-text-content.markdown-rendered h2,
+        .result-text-content.markdown-rendered h3,
+        .result-text.markdown-rendered h1,
+        .result-text.markdown-rendered h2,
+        .result-text.markdown-rendered h3 {
+            color: var(--text-primary);
+            margin-top: 16px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .result-text-content.markdown-rendered h1,
+        .result-text.markdown-rendered h1 {
+            font-size: 1.5em;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .result-text-content.markdown-rendered h2,
+        .result-text.markdown-rendered h2 {
+            font-size: 1.3em;
+        }
+
+        .result-text-content.markdown-rendered h3,
+        .result-text.markdown-rendered h3 {
+            font-size: 1.1em;
+        }
+
+        .result-text-content.markdown-rendered p,
+        .result-text.markdown-rendered p {
+            margin: 8px 0;
+        }
+
+        .result-text-content.markdown-rendered ul,
+        .result-text-content.markdown-rendered ol,
+        .result-text.markdown-rendered ul,
+        .result-text.markdown-rendered ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+
+        .result-text-content.markdown-rendered li,
+        .result-text.markdown-rendered li {
+            margin: 4px 0;
+        }
+
+        .result-text-content.markdown-rendered code,
+        .result-text.markdown-rendered code {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.9em;
+            color: var(--accent-color);
+        }
+
+        .result-text-content.markdown-rendered pre,
+        .result-text.markdown-rendered pre {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .result-text-content.markdown-rendered pre code,
+        .result-text.markdown-rendered pre code {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: var(--text-primary);
+            font-size: 0.85em;
+        }
+
+        .result-text-content.markdown-rendered blockquote,
+        .result-text.markdown-rendered blockquote {
+            border-left: 4px solid var(--accent-color);
+            padding-left: 16px;
+            margin: 12px 0;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .result-text-content.markdown-rendered table,
+        .result-text.markdown-rendered table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+            font-size: 0.9em;
+        }
+
+        .result-text-content.markdown-rendered table th,
+        .result-text-content.markdown-rendered table td,
+        .result-text.markdown-rendered table th,
+        .result-text.markdown-rendered table td {
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .result-text-content.markdown-rendered table th,
+        .result-text.markdown-rendered table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .result-text-content.markdown-rendered table tr:nth-child(even),
+        .result-text.markdown-rendered table tr:nth-child(even) {
+            background: var(--bg-secondary);
+        }
+
+        .result-text-content.markdown-rendered strong,
+        .result-text.markdown-rendered strong {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .result-text-content.markdown-rendered em,
+        .result-text.markdown-rendered em {
+            font-style: italic;
+        }
+
+        .result-text-content.markdown-rendered a,
+        .result-text.markdown-rendered a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        .result-text-content.markdown-rendered a:hover,
+        .result-text.markdown-rendered a:hover {
+            text-decoration: underline;
+        }
+
+        .result-text-content.markdown-rendered hr,
+        .result-text.markdown-rendered hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 16px 0;
+        }
+
+        .result-text.fade {
+            opacity: 0.4;
+        }
+
+        .result-text.new-message {
+            animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .result-text.new-message.with-glow {
+            animation: popInWithGlow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes popInWithGlow {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.8;
+                box-shadow: 0 0 0 0 rgba(118, 185, 71, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 20px 4px rgba(118, 185, 71, 0.6);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(118, 185, 71, 0);
+            }
+        }
+
+        /* VLM Metrics */
+        .metrics-inline {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .metric-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        /* System Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.3px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        .stat-value-denominator {
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0.85;
+        }
+
+        .stat-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            background: var(--accent-color);
+            transition: width 0.3s ease;
+        }
+
+        .stat-bar-fill.high {
+            background: var(--warning-color);
+        }
+
+        .sparkline {
+            width: 100%;
+            height: 40px;
+        }
+
+        /* Info Box */
+        .info-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .info-box h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            list-style-position: inside;
+            padding-left: 0;
+        }
+
+        .info-box li {
+            margin-bottom: 6px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-color);
+        }
+
+        /* Lucide icon styling */
+        .lucide {
+            width: 1em;
+            height: 1em;
+            vertical-align: middle;
+        }
+
+        .logo .lucide,
+        .logo svg {
+            width: 42px;
+            height: 42px;
+            filter: drop-shadow(0 0 8px var(--accent-color));
+        }
+
+        /* Logo color - theme-aware (subtle glow on light background) */
+        body.light-theme .logo .lucide,
+        body.light-theme .logo svg {
+            filter: drop-shadow(0 0 3px rgba(94, 148, 0, 0.3));
+        }
+
+        .icon-btn .lucide,
+        .settings-btn .lucide,
+        .video-control-btn .lucide {
+            width: 16px;
+            height: 16px;
+        }
+
+        .panel-icon .lucide {
+            width: 18px;
+            height: 18px;
+        }
+
+        .result-title .lucide {
+            width: 20px;
+            height: 20px;
+            margin-right: 6px;
+        }
+
+        /* Default: Neutral icon colors (clean two-tone system) */
+        .panel-icon svg,
+        .panel-icon .lucide,
+        .result-title svg,
+        .result-title .lucide {
+            stroke: var(--text-secondary) !important;
+        }
+
+        /* Colorful icon strokes (only when enabled) - Dark theme */
+        body.colorful-focus .panel-icon:has([data-lucide="globe"]) svg,
+        body.colorful-focus .panel-icon:has([data-lucide="globe"]) .lucide {
+            stroke: rgb(34, 211, 238) !important; /* Softer cyan */
+        }
+
+        body.colorful-focus .panel-icon:has([data-lucide="video"]) svg,
+        body.colorful-focus .panel-icon:has([data-lucide="video"]) .lucide {
+            stroke: rgb(59, 130, 246) !important; /* Blue */
+        }
+
+        body.colorful-focus .panel-icon:has([data-lucide="edit-3"]) svg,
+        body.colorful-focus .panel-icon:has([data-lucide="edit-3"]) .lucide {
+            stroke: rgb(251, 191, 36) !important; /* Yellow/Orange */
+        }
+
+        body.colorful-focus .result-title:has([data-lucide="bot"]) svg,
+        body.colorful-focus .result-title:has([data-lucide="bot"]) .lucide {
+            stroke: rgb(168, 85, 247) !important; /* Purple */
+        }
+
+        body.colorful-focus #systemStatsCard .result-title:has([data-lucide="activity"]) svg,
+        body.colorful-focus #systemStatsCard .result-title:has([data-lucide="activity"]) .lucide {
+            stroke: rgb(118, 185, 0) !important; /* NVIDIA Green */
+        }
+
+        /* Colorful icon strokes - Light theme (darker variants) */
+        body.light-theme.colorful-focus .panel-icon:has([data-lucide="globe"]) svg,
+        body.light-theme.colorful-focus .panel-icon:has([data-lucide="globe"]) .lucide {
+            stroke: rgb(6, 182, 212) !important; /* Darker cyan */
+        }
+
+        body.light-theme.colorful-focus .panel-icon:has([data-lucide="video"]) svg,
+        body.light-theme.colorful-focus .panel-icon:has([data-lucide="video"]) .lucide {
+            stroke: rgb(37, 99, 235) !important; /* Darker blue */
+        }
+
+        body.light-theme.colorful-focus .panel-icon:has([data-lucide="edit-3"]) svg,
+        body.light-theme.colorful-focus .panel-icon:has([data-lucide="edit-3"]) .lucide {
+            stroke: rgb(217, 119, 6) !important; /* Darker orange */
+        }
+
+        body.light-theme.colorful-focus .result-title:has([data-lucide="bot"]) svg,
+        body.light-theme.colorful-focus .result-title:has([data-lucide="bot"]) .lucide {
+            stroke: rgb(126, 34, 206) !important; /* Darker purple */
+        }
+
+        body.light-theme.colorful-focus #systemStatsCard .result-title:has([data-lucide="activity"]) svg,
+        body.light-theme.colorful-focus #systemStatsCard .result-title:has([data-lucide="activity"]) .lucide {
+            stroke: rgb(94, 148, 0) !important; /* Darker NVIDIA green */
+        }
+
+        /* Settings icon - theme-aware */
+        .settings-btn .lucide {
+            stroke: rgb(200, 200, 200);
+        }
+        body.light-theme .settings-btn .lucide {
+            stroke: rgb(100, 100, 100); /* Darker gray for light mode */
+        }
+
+        /* Theme toggle icons - Yellow/Gold */
+        #themeIcon .lucide {
+            stroke: rgb(247, 224, 166); /* Bright gold for dark mode (moon) */
+        }
+        body.light-theme #themeIcon .lucide {
+            stroke: rgb(223, 168, 4); /* Darker gold for light mode (sun) */
+        }
+
+        /* Video control buttons - Teal */
+        .video-control-btn .lucide {
+            stroke: rgb(20, 184, 166);
+        }
+        body.light-theme .video-control-btn .lucide {
+            stroke: rgb(13, 148, 136); /* Darker teal for light mode */
+        }
+
+        /* Action button icons (play, stop) - White for contrast on green button */
+        .btn-primary .lucide {
+            stroke: white !important;
+        }
+        body.light-theme .btn-primary .lucide {
+            stroke: white !important;
+        }
+
+        .btn-secondary .lucide {
+            stroke: var(--text-primary) !important;
+        }
+
+        /* Input fields - Focus and Apply animations */
+        #promptText,
+        #maxTokens,
+        #stepValue,
+        #stepMode,
+        #startTime,
+        #endTime,
+        #maxFrames,
+        #frameWidth,
+        #apiBaseUrl,
+        #apiKey,
+        #modelSelect {
+            transition: all 0.3s ease;
+        }
+
+        /* Default: Neutral white focus glow (when colorful is disabled) */
+        #promptText:focus,
+        #maxTokens:focus,
+        #stepValue:focus,
+        #stepMode:focus,
+        #startTime:focus,
+        #endTime:focus,
+        #maxFrames:focus,
+        #frameWidth:focus,
+        #apiBaseUrl:focus,
+        #apiKey:focus,
+        #modelSelect:focus {
+            border-color: rgba(200, 200, 200, 0.6) !important;
+            box-shadow: 0 0 0 2px rgba(200, 200, 200, 0.15),
+                        0 0 8px rgba(200, 200, 200, 0.2) !important;
+            outline: none;
+        }
+
+        /* Colorful focus glows (only when enabled) */
+        body.colorful-focus #promptText:focus,
+        body.colorful-focus #maxTokens:focus {
+            border-color: rgb(251, 191, 36) !important;
+            box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3),
+                        0 0 12px rgba(251, 191, 36, 0.4) !important;
+        }
+
+        body.colorful-focus #stepValue:focus,
+        body.colorful-focus #stepMode:focus,
+        body.colorful-focus #startTime:focus,
+        body.colorful-focus #endTime:focus,
+        body.colorful-focus #maxFrames:focus,
+        body.colorful-focus #frameWidth:focus {
+            border-color: rgb(59, 130, 246) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3),
+                        0 0 12px rgba(59, 130, 246, 0.4) !important;
+        }
+
+        body.colorful-focus #apiBaseUrl:focus,
+        body.colorful-focus #apiKey:focus,
+        body.colorful-focus #modelSelect:focus {
+            border-color: rgb(34, 211, 238) !important;
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25),
+                        0 0 12px rgba(34, 211, 238, 0.3) !important;
+        }
+
+        /* Bright flash animation when applied (on blur) */
+        @keyframes settingApplied {
+            0% {
+                box-shadow: 0 0 0 0 rgba(118, 185, 0, 0.7),
+                           0 0 20px rgba(118, 185, 0, 0.8);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(118, 185, 0, 0.3),
+                           0 0 30px rgba(118, 185, 0, 0.6);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(118, 185, 0, 0),
+                           0 0 0 rgba(118, 185, 0, 0);
+            }
+        }
+
+        #promptText.applied,
+        #maxTokens.applied,
+        #stepValue.applied,
+        #startTime.applied,
+        #endTime.applied,
+        #maxFrames.applied,
+        #frameWidth.applied,
+        #apiBaseUrl.applied,
+        #apiKey.applied,
+        #modelSelect.applied {
+            animation: settingApplied 0.6s ease-out;
+        }
+
+
+        /* ===== Video source: drop zone and file summary ===== */
+        .dropzone {
+            border: 2px dashed var(--border-color);
+            border-radius: 10px;
+            padding: 22px 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-tertiary);
+            margin-bottom: 12px;
+        }
+
+        .dropzone:hover,
+        .dropzone.dragover {
+            border-color: var(--accent-color);
+            background: var(--card-hover);
+        }
+
+        .dropzone.dragover {
+            box-shadow: 0 0 0 3px rgba(118, 185, 0, 0.2);
+        }
+
+        .dropzone-icon {
+            color: var(--accent-color);
+            margin-bottom: 8px;
+        }
+
+        .dropzone-icon svg {
+            width: 26px;
+            height: 26px;
+        }
+
+        .dropzone-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .dropzone-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .video-summary {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        .video-summary-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-all;
+            margin-bottom: 6px;
+        }
+
+        .video-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 4px 12px;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .video-summary-grid span:nth-child(odd) {
+            color: var(--text-muted);
+        }
+
+        /* ===== Progress ===== */
+        .progress-track {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-color), var(--nvidia-green-light));
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.paused {
+            background: linear-gradient(90deg, var(--warning-color), #ffcc80);
+        }
+
+        .progress-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .upload-progress {
+            font-size: 11px;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+            display: none;
+        }
+
+        /* ===== Analysis timeline ===== */
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .timeline-tools {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .timeline {
+            max-height: 460px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;
+        }
+
+        .timeline-empty {
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 24px 0;
+            text-align: center;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 12px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .timeline-item:hover {
+            border-color: var(--accent-color);
+            background: var(--card-hover);
+        }
+
+        .timeline-item.failed {
+            border-color: var(--error-color);
+        }
+
+        .timeline-item.latest {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 1px rgba(118, 185, 0, 0.25);
+        }
+
+        .timeline-thumb {
+            width: 120px;
+            height: 68px;
+            object-fit: cover;
+            border-radius: 6px;
+            background: #000;
+            flex-shrink: 0;
+        }
+
+        .timeline-thumb-missing {
+            width: 120px;
+            height: 68px;
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            flex-shrink: 0;
+        }
+
+        .timeline-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .timeline-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timeline-time {
+            color: var(--accent-color);
+            font-weight: 700;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+        }
+
+        .timeline-text {
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .timeline-item.failed .timeline-text {
+            color: var(--error-color);
+        }
+
+        /* ===== GRADIENT STROKES (Optional - gradients may not work reliably with Lucide) ===== */
+        /*
+        .panel-icon [data-lucide="globe"] svg {
+            stroke: url(#gradient-cyan) !important;
+        }
+
+        .panel-icon [data-lucide="video"] svg {
+            stroke: url(#gradient-blue) !important;
+        }
+
+        .panel-icon [data-lucide="edit-3"] svg {
+            stroke: url(#gradient-orange) !important;
+        }
+
+        .result-title [data-lucide="bot"] svg {
+            stroke: url(#gradient-purple) !important;
+        }
+
+        #systemStatsCard .result-title [data-lucide="activity"] svg {
+            stroke: url(#gradient-green) !important;
+        }
+        */
+
+    </style>
+
+    <!-- SVG Gradient Definitions (for gradient strokes) -->
+    <svg width="0" height="0" style="position: absolute;">
+        <defs>
+            <!-- Cyan gradient -->
+            <linearGradient id="gradient-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:rgb(34, 211, 238);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:rgb(6, 182, 212);stop-opacity:1" />
+            </linearGradient>
+
+            <!-- Blue gradient -->
+            <linearGradient id="gradient-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:rgb(96, 165, 250);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:rgb(59, 130, 246);stop-opacity:1" />
+            </linearGradient>
+
+            <!-- Orange/Yellow gradient -->
+            <linearGradient id="gradient-orange" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:rgb(251, 191, 36);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:rgb(245, 158, 11);stop-opacity:1" />
+            </linearGradient>
+
+            <!-- Purple gradient -->
+            <linearGradient id="gradient-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:rgb(192, 132, 252);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:rgb(168, 85, 247);stop-opacity:1" />
+            </linearGradient>
+
+            <!-- NVIDIA Green gradient -->
+            <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:rgb(139, 201, 25);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:rgb(118, 185, 0);stop-opacity:1" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- Lucide Icons - Load before body scripts -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Markdown rendering libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+    <script>
+        // Initialize Lucide icons immediately when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
+        } else {
+            lucide.createIcons();
+        }
+    </script>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     width="42"
+                     height="42"
+                     viewBox="0 0 1024 1024"
+                     fill="none"
+                     style="color: var(--accent-color);">
+                    <!-- All parts become accent color (NVIDIA green) -->
+                    <path fill="currentColor" d="M1024 727.183 511.134 1024 0 729.493V601.5l511.134 296L1024 601.5z"/>
+
+                    <path fill="currentColor" d="M968.916 53.23c20.567-11.874 37.244-2.248 37.244 21.5v452.571c0 23.748-16.678 52.625-37.244 64.5L568.653 822.893c-20.566 11.874-37.239 2.248-37.239-21.5V348.821c0-23.748 16.673-52.626 37.239-64.5zM592 407.121v304.172c0 18.777 13.183 26.389 29.445 17l303.11-175.001c16.262-9.389 29.445-32.222 29.445-51V198.12zm35-89.894c0-15.037-10.745-21.023-24-13.371-13.255 7.653-24 26.046-24 41.083s10.745 21.024 24 13.371c13.255-7.652 24-26.046 24-41.083M427.702 479.5v337L25 584V247zM216.603 440C168.773 412.386 130 434.772 130 490s38.773 122.386 86.603 150 86.602 5.228 86.602-50-38.773-122.386-86.602-150m146.855 44.544c-12.955-7.48-23.458-1.417-23.458 13.543s10.503 33.151 23.458 40.631 23.458 1.415 23.458-13.544c0-14.96-10.503-33.15-23.458-40.63"/>
+
+                    <path fill="currentColor" d="m455.5 464-403-233.5 38.5-21 404.5 232V778l-40 24.5zM501.5 363.5v40L128.644 191.366 166 169.799zM513.5 298c-6.5 9-9 15.5-12 25.5L198 153l31-17zM931 519.064 715 643.772v-88.949l20.784-11.999v64.948l174.431-100.708v-64.967c8.419-5.181 15.888-14.149 20.785-24.097zM895.288 276.814c15.305-8.836 27.713-1.673 27.713 16v80c0 17.673-12.408 39.164-27.713 48L654.713 559.71c-15.306 8.837-27.713 1.674-27.713-16v-80c0-17.673 12.407-39.163 27.713-48zM663.882 457.792v31.943l158.18-91.325v-31.943z"/>
+                </svg>
+            </div>
+            <div class="title-section">
+                <h1>Process VLM WebUI</h1>
+                <div class="subtitle">Describe a video file frame by frame with a Vision Language Model</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="rec-pill" id="recPill" style="display: none;">
+                <span class="rec-pill-dot"></span>
+                <span id="recPillLabel">Rec</span>
+                <span class="rec-pill-count" id="recPillCount">0</span>
+            </button>
+            <span class="status-badge disconnected" id="connectionStatus">Disconnected</span>
+            <button class="settings-btn" id="settingsBtn" title="Settings">
+                <i data-lucide="settings"></i>
+            </button>
+            <button class="theme-toggle" id="themeToggle">
+                <span id="themeIcon">
+                    <i data-lucide="moon"></i>
+                </span>
+                <span id="themeText">Dark</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-dialog">
+            <div class="settings-header">
+                <div class="settings-title">
+                    <i data-lucide="settings"></i> Settings
+                </div>
+                <button class="settings-close" id="settingsClose">×</button>
+            </div>
+            <div class="settings-body">
+                <!-- Column 1: Layout & Visual Effects -->
+                <div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">Layout</div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">Main Content Order</div>
+                                <div class="settings-item-description">Choose which element appears at the top</div>
+                            </div>
+                            <select id="layoutOrder" class="settings-select">
+                                <option value="video-first">Video → VLM Output Info</option>
+                                <option value="vlm-first" selected>VLM Output Info → Video</option>
+                            </select>
+                        </div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">VLM Output on Video View</div>
+                                <div class="settings-item-description">Show the latest description over the video</div>
+                            </div>
+                            <select id="overlayPosition" class="settings-select">
+                                <option value="none">None</option>
+                                <option value="top">At the top</option>
+                                <option value="bottom">At the bottom</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <div class="settings-section-title">Visual Effects</div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">Pop-in Animation</div>
+                                <div class="settings-item-description">Scale animation when new VLM response arrives</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="popInToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">Green Glow Effect</div>
+                                <div class="settings-item-description">Border glow on new VLM response</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="glowToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">Fade Effect</div>
+                                <div class="settings-item-description">Gradually fade response after 2 seconds</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="fadeToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2: Input Colors & WebRTC -->
+                <div>
+                    <div class="settings-section">
+                        <div class="settings-section-title">Visual Style</div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">Colorful UI Accents</div>
+                                <div class="settings-item-description">Color-coded icons and input focus glows</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="colorfulFocusToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <div class="settings-section-title">Analysis Timeline</div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">Auto-scroll</div>
+                                <div class="settings-item-description">Keep the newest description in view while analysing</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="autoScrollToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">Follow the Analysis</div>
+                                <div class="settings-item-description">Seek the video player to each frame as it is described</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="followToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="settings-item">
+                            <div>
+                                <div class="settings-item-label">Newest First</div>
+                                <div class="settings-item-description">Put the latest description at the top of the timeline</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="newestFirstToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <div class="settings-section-title">GPU Monitoring</div>
+
+                        <div class="settings-item">
+                            <div style="flex: 1; min-width: 0;">
+                                <div class="settings-item-label">Graph Update Interval (seconds)</div>
+                                <div class="settings-item-description">How often to update GPU/CPU graphs (lower = more responsive, higher = less CPU usage)</div>
+                            </div>
+                            <input type="number" id="gpuUpdateInterval" value="0.25" min="0.1" max="5.0" step="0.05" style="width: 80px; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary); font-size: 14px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <!-- VLM API Configuration -->
+            <div class="panel">
+                <div class="panel-header" onclick="togglePanel('vlmConfig')">
+                    <div class="panel-title">
+                        <span class="panel-icon">
+                            <i data-lucide="globe"></i>
+                        </span>
+                        VLM API Configuration
+                    </div>
+                    <span class="panel-toggle" id="vlmConfigToggle">▼</span>
+                </div>
+                <div class="panel-content" id="vlmConfig">
+                    <div class="form-group">
+                        <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0; flex: 1;">API Base URL</label>
+                            <div style="position: relative;">
+                                <button class="icon-btn" id="apiPresetsBtn" title="Select preset API endpoint">
+                                    <i data-lucide="clipboard"></i>
+                                </button>
+                                <div id="apiPresetsMenu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 280px; z-index: 9999;">
+                                    <div style="padding: 8px 0;">
+                                        <div class="api-preset-item" data-url="http://localhost:11434/v1">
+                                            <strong>Ollama</strong><br>
+                                            <span style="font-size: 11px; color: var(--text-muted);">http://localhost:11434/v1</span>
+                                        </div>
+                                        <div class="api-preset-item" data-url="http://localhost:8000/v1">
+                                            <strong>vLLM</strong><br>
+                                            <span style="font-size: 11px; color: var(--text-muted);">http://localhost:8000/v1</span>
+                                        </div>
+                                        <div class="api-preset-item" data-url="http://localhost:30000/v1">
+                                            <strong>SGLang</strong><br>
+                                            <span style="font-size: 11px; color: var(--text-muted);">http://localhost:30000/v1</span>
+                                        </div>
+                                        <div style="border-top: 1px solid var(--border-color); margin: 4px 0;"></div>
+                                        <div class="api-preset-item" data-url="https://api.openai.com/v1">
+                                            <strong>OpenAI</strong><br>
+                                            <span style="font-size: 11px; color: var(--text-muted);">https://api.openai.com/v1</span>
+                                        </div>
+                                        <div class="api-preset-item" data-url="https://integrate.api.nvidia.com/v1">
+                                            <strong>NVIDIA API Catalog</strong><br>
+                                            <span style="font-size: 11px; color: var(--text-muted);">https://integrate.api.nvidia.com/v1</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <input type="text" id="apiBaseUrl" value="http://localhost:11434/v1" placeholder="http://localhost:8000/v1">
+                        <div class="input-hint" id="apiBaseHint">Select from presets or enter custom URL</div>
+                    </div>
+                    <div class="form-group" id="apiKeyGroup">
+                        <div style="display: flex; align-items: center; cursor: pointer; margin-bottom: 8px;" onclick="toggleApiKeyField()">
+                            <label style="margin-bottom: 0; flex: 1;">API Key (Optional)</label>
+                            <span id="apiKeyToggle" style="font-size: 12px; color: var(--text-secondary);">▼</span>
+                        </div>
+                        <div id="apiKeyField">
+                            <input type="text" id="apiKey" placeholder="sk-..." autocomplete="off">
+                            <div class="input-hint">Required for OpenAI and NVIDIA API Catalog, etc.</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0;">Model Selection</label>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="icon-btn" id="refreshModelsBtn" title="Refresh available models">
+                                    <i data-lucide="refresh-cw"></i>
+                                </button>
+                                <button class="icon-btn" id="downloadModelBtn" title="Download new model (coming soon)" disabled style="opacity: 0.5;">
+                                    <i data-lucide="plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <select id="modelSelect">
+                            <option value="">Loading models...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Source and Sampling -->
+            <div class="panel">
+                <div class="panel-header" onclick="togglePanel('videoConfig')">
+                    <div class="panel-title">
+                        <span class="panel-icon">
+                            <i data-lucide="film"></i>
+                        </span>
+                        Video and App Control
+                    </div>
+                    <span class="panel-toggle" id="videoConfigToggle">&#9660;</span>
+                </div>
+                <div class="panel-content" id="videoConfig">
+                    <!-- File picker / drop target -->
+                    <div class="dropzone" id="dropzone">
+                        <div class="dropzone-icon"><i data-lucide="upload-cloud"></i></div>
+                        <div class="dropzone-title">Drop an MP4 here</div>
+                        <div class="dropzone-hint">or click to choose a file &middot; mp4, mov, mkv, avi, webm</div>
+                    </div>
+                    <input type="file" id="videoInput" accept="video/mp4,video/quicktime,video/x-matroska,video/x-msvideo,video/webm,.mp4,.mov,.m4v,.mkv,.avi,.webm" style="display: none;">
+                    <div class="upload-progress" id="uploadProgress">Uploading&hellip;</div>
+
+                    <!-- Summary of the loaded video -->
+                    <div class="video-summary" id="videoSummary" style="display: none;">
+                        <div class="video-summary-name" id="videoSummaryName">--</div>
+                        <div class="video-summary-grid">
+                            <span>Duration</span><span id="videoSummaryDuration">--</span>
+                            <span>Resolution</span><span id="videoSummaryResolution">--</span>
+                            <span>Frame rate</span><span id="videoSummaryFps">--</span>
+                            <span>Frames</span><span id="videoSummaryFrames">--</span>
+                            <span>Size</span><span id="videoSummarySize">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Sampling -->
+                    <div class="form-group">
+                        <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 8px;">
+                            <div class="tooltip-wrapper" style="margin-bottom: 0; flex: 1;">
+                                <label style="margin-bottom: 0;">Time Step</label>
+                                <span class="tooltip-icon">&#8505;</span>
+                                <div class="tooltip-text">
+                                    <strong>Seconds:</strong> analyse one frame every N seconds of video.<br>
+                                    A 10 minute clip at a 5 second step is 120 descriptions.<br><br>
+                                    <strong>Frames:</strong> analyse every Nth frame instead, which
+                                    ties the sampling to the source frame rate.
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="number" id="stepValue" value="2" min="0.04" max="3600" step="0.1" style="flex: 1;">
+                            <select id="stepMode" style="flex: 1;">
+                                <option value="seconds" selected>seconds</option>
+                                <option value="frames">frames</option>
+                            </select>
+                        </div>
+                        <div class="input-hint" id="stepHint">One description every 2s of video</div>
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn btn-primary" id="startBtn" style="width: 100%; margin-bottom: 8px;" disabled>
+                            <i data-lucide="play" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                            Analyse Video
+                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-secondary" id="pauseBtn" disabled style="flex: 1;">
+                                <i data-lucide="pause" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                                Pause
+                            </button>
+                            <button class="btn btn-secondary" id="stopBtn" disabled style="flex: 1;">
+                                <i data-lucide="square" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                                Stop
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Progress -->
+                    <div class="form-group" id="progressGroup" style="display: none;">
+                        <div class="progress-track">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-meta">
+                            <span id="progressCount">0 / 0</span>
+                            <span id="progressEta"></span>
+                        </div>
+                    </div>
+
+                    <!-- Advanced sampling options -->
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePanel('advancedVideo')">
+                            <span>Advanced</span>
+                            <span class="panel-toggle collapsed" id="advancedVideoToggle" style="font-size: 10px;">&#9660;</span>
+                        </label>
+                        <div class="panel-content collapsed" id="advancedVideo" style="padding-top: 10px;">
+                            <div style="display: flex; gap: 8px; margin-bottom: 4px;">
+                                <div style="flex: 1;">
+                                    <label>Start (s)</label>
+                                    <input type="number" id="startTime" value="0" min="0" step="1">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label>End (s)</label>
+                                    <input type="number" id="endTime" placeholder="end" min="0" step="1">
+                                </div>
+                            </div>
+                            <div class="input-hint" style="margin-bottom: 12px;">Analyse only part of the video (leave End empty for all of it)</div>
+
+                            <label>Max Frames</label>
+                            <input type="number" id="maxFrames" value="0" min="0" step="1">
+                            <div class="input-hint" style="margin-bottom: 12px;">Stop after this many descriptions (0 = no limit)</div>
+
+                            <label>Frame Width</label>
+                            <input type="number" id="frameWidth" value="1280" min="0" max="4096" step="16">
+                            <div class="input-hint" style="margin-bottom: 12px;">Downscale before inference - smaller is faster and cheaper (0 = keep original)</div>
+
+                            <div class="transcript-toggle-row" style="margin-bottom: 0;">
+                                <div class="input-hint" style="margin: 0;">Carry the previous description into each prompt</div>
+                                <label class="toggle-switch" title="Describe the video as a continuing scene instead of unrelated stills">
+                                    <input type="checkbox" id="carryContext">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt Editor -->
+            <div class="panel">
+                <div class="panel-header" onclick="togglePanel('promptEditor')">
+                    <div class="panel-title">
+                        <span class="panel-icon">
+                            <i data-lucide="edit-3"></i>
+                        </span>
+                        Prompt Editor
+                    </div>
+                    <span class="panel-toggle" id="promptEditorToggle">▼</span>
+                </div>
+                <div class="panel-content" id="promptEditor">
+                    <div class="form-group">
+                        <label>Quick Presets</label>
+                        <select id="promptPreset">
+                            <option value="">-- Select a preset --</option>
+                            <option value="Describe what you see in this image in one sentence.">Scene Description</option>
+                            <option value="Describe this moment of the video in one or two sentences: who or what is present, and what is happening.">Video Narration</option>
+                            <option value="Describe the action taking place. If nothing is happening, say 'No activity'.">Action Log</option>
+                            <option value="List every distinct object and person visible, separated by commas. No other text.">Shot Inventory</option>
+                            <option value="List all objects you can see in this image, separated by commas.">Object Detection</option>
+                            <option value="Describe the person's activity and what they are doing.">Activity Recognition</option>
+                            <option value="Are there any safety hazards visible? Answer with 'ALERT: description' or 'SAFE'.">Safety Monitoring</option>
+                            <option value="Describe the facial expressions and emotions of people visible.">Emotion Detection</option>
+                            <option value="Provide a detailed description of the scene for a visually impaired person.">Accessibility</option>
+                            <option value="Read and transcribe any text visible in the image.">OCR / Text Reading</option>
+                            <option value="Answer with Yes or No only: Is there a person visible?">Yes/No Question</option>
+                            <option value="You are a robot. Describe what you see, then give 5 navigation commands to get to a possible location of a bathroom. Format: 'linear_x=0.3, angular_z=0.0 # reason'. Keep linear_x between -0.5 and 0.5, angular_z between -1.0 and 1.0.">🤖 Robot Navigation (Simple)</option>
+                            <option value="You are controlling a mobile robot with differential drive. Camera: 1.0m height, forward-facing. Generate ROS cmd_vel commands based on what you see to get to a possible location of a bathroom.
+
+CRITICAL CONSTRAINTS:
+- linear.x: MUST be between -0.5 and +0.5 m/s (violations will cause robot damage)
+- angular.z: MUST be between -1.0 and +1.0 rad/s
+- Commands must respond to actual obstacles/scene content
+
+OUTPUT FORMAT (20 commands for 2.0 seconds):
+T=0.0s: linear.x=0.20, angular.z=0.00 # [explain what you see and why this velocity]
+T=0.1s: linear.x=0.18, angular.z=-0.15 # [explain decision based on scene]
+... (continue for all 20 timesteps)
+
+STRATEGY SECTION:
+After commands, explain: obstacles detected, clearance margins, goal inference, safety considerations.">🤖 Robot Navigation (ROS)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Custom Prompt</label>
+                        <textarea id="promptText" placeholder="Enter your custom prompt here...">Describe what you see in this image in one sentence.</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Tokens</label>
+                        <input type="number" id="maxTokens" value="512" min="1" max="4096" step="1">
+                        <div class="input-hint">Lower for short answers (Yes/No: ~10), higher for detailed descriptions</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transcript (analysis logging) -->
+            <div class="panel" id="transcriptPanel" style="display: none;">
+                <div class="panel-header" onclick="togglePanel('transcriptConfig')">
+                    <div class="panel-title">
+                        <span class="panel-icon">
+                            <i data-lucide="save"></i>
+                        </span>
+                        Transcript
+                    </div>
+                    <span class="panel-toggle" id="transcriptConfigToggle">&#9660;</span>
+                </div>
+                <div class="panel-content" id="transcriptConfig">
+                    <div class="transcript-status">
+                        <span class="transcript-dot" id="transcriptDot"></span>
+                        <span id="transcriptStatusText">Not recording</span>
+                    </div>
+
+                    <div class="transcript-stats">
+                        <div class="transcript-stat">
+                            <div class="transcript-stat-value" id="transcriptRecords">0</div>
+                            <div class="transcript-stat-label">Saved</div>
+                        </div>
+                        <div class="transcript-stat">
+                            <div class="transcript-stat-value" id="transcriptBackups">0</div>
+                            <div class="transcript-stat-label">Backups</div>
+                        </div>
+                        <div class="transcript-stat">
+                            <div class="transcript-stat-value" id="transcriptErrors">0</div>
+                            <div class="transcript-stat-label">Errors</div>
+                        </div>
+                    </div>
+
+                    <div class="transcript-file" id="transcriptPath" title="Transcript file on the server">--</div>
+
+                    <div class="transcript-toggle-row">
+                        <div class="input-hint" id="transcriptBackupHint">Backup every -- records</div>
+                        <label class="toggle-switch" title="Pause or resume saving analyses to disk">
+                            <input type="checkbox" id="transcriptToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="transcript-actions">
+                        <button class="btn btn-secondary" id="transcriptBackupBtn" title="Write a backup snapshot now">
+                            <i data-lucide="hard-drive-download" style="width: 14px; height: 14px;"></i> Backup
+                        </button>
+                        <button class="btn btn-primary" id="transcriptDownloadBtn" title="Download the transcript file">
+                            <i data-lucide="download" style="width: 14px; height: 14px;"></i> Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Video Player -->
+            <div class="video-card">
+                <div class="video-controls">
+                    <button class="video-control-btn" id="followBtn" title="Seek the player to each frame as it is described">
+                        <i data-lucide="crosshair"></i> Follow
+                    </button>
+                </div>
+                <video id="videoElement" playsinline muted controls preload="metadata"></video>
+                <div class="video-overlay" id="videoOverlay"></div>
+            </div>
+
+            <!-- Generation Result -->
+            <div class="result-card">
+                <div class="result-header">
+                    <div class="result-header-left">
+                        <div class="result-title">
+                            <i data-lucide="bot"></i> VLM Output Info
+                        </div>
+                        <div class="result-subtitle">
+                            Model: <span id="modelName" style="font-weight: 600; color: var(--accent-color);">--</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div class="metrics-inline" id="metricsInline" style="display: none;">
+                            <div class="metric-item">
+                                <span>Latency:</span>
+                                <span class="metric-value" id="latencyValue">--</span>
+                                <span>ms</span>
+                            </div>
+                            <div class="metric-item">
+                                <span>Avg:</span>
+                                <span class="metric-value" id="avgLatencyValue">--</span>
+                                <span>ms</span>
+                            </div>
+                            <div class="metric-item">
+                                <span>Count:</span>
+                                <span class="metric-value" id="countValue">--</span>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+
+                <div class="result-prompt" id="currentPrompt"></div>
+                <div class="result-text" id="resultText">
+                    <button class="markdown-toggle-embedded" id="markdownToggle" title="Toggle Markdown Rendering">
+                        <span id="markdownIcon"><i data-lucide="code"></i></span>
+                        <span id="markdownText">Markdown</span>
+                    </button>
+                    <button class="copy-button-embedded" id="copyButton" title="Copy to clipboard">
+                        <i data-lucide="copy"></i>
+                    </button>
+                    <div class="result-text-content" id="resultTextContent"></div>
+                </div>
+            </div>
+
+            <!-- Analysis Timeline -->
+            <div class="result-card" id="timelineCard">
+                <div class="timeline-header">
+                    <div>
+                        <div class="result-title">
+                            <i data-lucide="list-video"></i> Analysis Timeline
+                        </div>
+                        <div class="result-subtitle">
+                            <span id="timelineCount">0</span> descriptions &middot;
+                            <span id="timelineVideo">no video loaded</span>
+                        </div>
+                    </div>
+                    <div class="timeline-tools">
+                        <button class="btn btn-secondary" id="timelineCopyBtn" title="Copy the whole timeline as text">
+                            <i data-lucide="clipboard-list" style="width: 14px; height: 14px;"></i> Copy All
+                        </button>
+                        <button class="btn btn-primary" id="timelineDownloadBtn" title="Download the transcript file for this session">
+                            <i data-lucide="download" style="width: 14px; height: 14px;"></i> Transcript
+                        </button>
+                    </div>
+                </div>
+                <div class="timeline" id="timeline">
+                    <div class="timeline-empty" id="timelineEmpty">
+                        Load a video and press Analyse - each description appears here with its timecode.
+                        Click any entry to jump the player to that moment.
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Stats -->
+            <div class="result-card" id="systemStatsCard">
+                <div class="result-header" style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+                    <div class="result-title">
+                        <i data-lucide="activity"></i> Local System Stats
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-secondary); text-align: right; font-weight: 400; flex-shrink: 1; min-width: 0;">
+                        <span id="systemInfoHeader" style="flex: 1;">Loading...</span>
+                        <img id="systemProductImage"
+                             src=""
+                             alt="System"
+                             style="width: 48px; height: 48px; object-fit: contain; display: none;"
+                             onerror="this.style.display='none';">
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">GPU Utilization</span>
+                            <span class="stat-value" id="gpuUtil">--%</span>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill" id="gpuUtilBar" style="width: 0%"></div>
+                        </div>
+                        <canvas id="gpuUtilSparkline" class="sparkline"></canvas>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">VRAM Usage</span>
+                            <span class="stat-value" id="vramUsage">-- GB</span>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill" id="vramBar" style="width: 0%"></div>
+                        </div>
+                        <canvas id="vramSparkline" class="sparkline"></canvas>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">CPU Utilization</span>
+                            <span class="stat-value" id="cpuUtil">--%</span>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill" id="cpuBar" style="width: 0%"></div>
+                        </div>
+                        <canvas id="cpuSparkline" class="sparkline"></canvas>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">System RAM</span>
+                            <span class="stat-value" id="ramUsage">-- GB</span>
+                        </div>
+                        <div class="stat-bar">
+                            <div class="stat-bar-fill" id="ramBar" style="width: 0%"></div>
+                        </div>
+                        <canvas id="ramSparkline" class="sparkline"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const themeText = document.getElementById('themeText');
+        const videoElement = document.getElementById('videoElement');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const resultText = document.getElementById('resultText');
+        const currentPrompt = document.getElementById('currentPrompt');
+        const metricsInline = document.getElementById('metricsInline');
+        const markdownToggle = document.getElementById('markdownToggle');
+        const markdownIcon = document.getElementById('markdownIcon');
+        const markdownText = document.getElementById('markdownText');
+        const copyButton = document.getElementById('copyButton');
+        const latencyValue = document.getElementById('latencyValue');
+        const avgLatencyValue = document.getElementById('avgLatencyValue');
+        const countValue = document.getElementById('countValue');
+        const promptPreset = document.getElementById('promptPreset');
+        const promptText = document.getElementById('promptText');
+        const maxTokens = document.getElementById('maxTokens');
+        const modelSelect = document.getElementById('modelSelect');
+        const refreshModelsBtn = document.getElementById('refreshModelsBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const dropzone = document.getElementById('dropzone');
+        const videoInput = document.getElementById('videoInput');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const videoSummary = document.getElementById('videoSummary');
+        const stepValue = document.getElementById('stepValue');
+        const stepMode = document.getElementById('stepMode');
+        const stepHint = document.getElementById('stepHint');
+        const startTime = document.getElementById('startTime');
+        const endTime = document.getElementById('endTime');
+        const maxFrames = document.getElementById('maxFrames');
+        const frameWidth = document.getElementById('frameWidth');
+        const carryContext = document.getElementById('carryContext');
+        const progressGroup = document.getElementById('progressGroup');
+        const progressFill = document.getElementById('progressFill');
+        const progressCount = document.getElementById('progressCount');
+        const progressEta = document.getElementById('progressEta');
+        const timeline = document.getElementById('timeline');
+        const timelineEmpty = document.getElementById('timelineEmpty');
+        const timelineCount = document.getElementById('timelineCount');
+        const timelineVideo = document.getElementById('timelineVideo');
+        const followBtn = document.getElementById('followBtn');
+
+        let websocket = null;
+        let fadeTimeout = null;
+        let lastText = '';
+        let isAnalysisRunning = false;
+        let isPaused = false;
+        // The video the server has accepted and is ready to analyse
+        let currentVideo = null;
+        let currentJobId = null;
+        // Every description this job has produced, in video order
+        let timelineItems = [];
+        // Enable markdown by default (user can disable if they prefer raw text)
+        let markdownEnabled = localStorage.getItem('markdownEnabled') !== 'false';
+
+        // ===== Video source: upload, inspect, and hand to the server =====
+
+        function formatBytes(bytes) {
+            if (!bytes) return '--';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let value = bytes, unit = 0;
+            while (value >= 1024 && unit < units.length - 1) {
+                value /= 1024;
+                unit++;
+            }
+            return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
+        }
+
+        function formatClock(seconds) {
+            if (seconds === null || seconds === undefined || isNaN(seconds)) return '--';
+            const total = Math.max(0, Math.round(seconds));
+            const h = Math.floor(total / 3600);
+            const m = Math.floor((total % 3600) / 60);
+            const sec = total % 60;
+            const mm = String(m).padStart(2, '0');
+            const ss = String(sec).padStart(2, '0');
+            return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+        }
+
+        // Show the file the server accepted, and point the player at it
+        function setCurrentVideo(meta) {
+            currentVideo = meta;
+
+            document.getElementById('videoSummaryName').textContent =
+                meta.original_filename || meta.filename;
+            document.getElementById('videoSummaryDuration').textContent =
+                meta.duration_timecode ? meta.duration_timecode.slice(0, 8) : formatClock(meta.duration_s);
+            document.getElementById('videoSummaryResolution').textContent =
+                `${meta.width} x ${meta.height}`;
+            document.getElementById('videoSummaryFps').textContent = `${meta.fps} fps`;
+            document.getElementById('videoSummaryFrames').textContent =
+                (meta.frame_count || 0).toLocaleString();
+            document.getElementById('videoSummarySize').textContent = formatBytes(meta.size_bytes);
+            videoSummary.style.display = 'block';
+
+            // Playback comes from the server's copy, so the player and the
+            // analysis are looking at exactly the same file
+            videoElement.src = meta.url;
+            videoElement.load();
+
+            timelineVideo.textContent = meta.original_filename || meta.filename;
+            startBtn.disabled = false;
+            updateStepHint();
+        }
+
+        async function uploadVideo(file) {
+            uploadProgress.style.display = 'block';
+            uploadProgress.textContent = `Uploading ${file.name}...`;
+            startBtn.disabled = true;
+
+            const form = new FormData();
+            form.append('file', file, file.name);
+
+            try {
+                const meta = await new Promise((resolve, reject) => {
+                    // XHR rather than fetch: a multi-gigabyte upload needs a
+                    // progress indicator, and fetch still cannot report one
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/api/video/upload');
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            const pct = Math.round((e.loaded / e.total) * 100);
+                            uploadProgress.textContent = `Uploading ${file.name} - ${pct}%`;
+                        }
+                    };
+                    xhr.onload = () => {
+                        let data;
+                        try {
+                            data = JSON.parse(xhr.responseText);
+                        } catch (err) {
+                            reject(new Error(`Server returned ${xhr.status}`));
+                            return;
+                        }
+                        if (xhr.status === 200 && data.video) {
+                            resolve(data.video);
+                        } else {
+                            reject(new Error(data.error || `Upload failed (${xhr.status})`));
+                        }
+                    };
+                    xhr.onerror = () => reject(new Error('Network error during upload'));
+                    xhr.send(form);
+                });
+
+                uploadProgress.style.display = 'none';
+                setCurrentVideo(meta);
+                updateStatus('Video ready', 'connected');
+            } catch (err) {
+                console.error('Upload failed:', err);
+                uploadProgress.style.display = 'none';
+                updateStatus('Upload failed', 'disconnected');
+                alert('Could not load that video: ' + err.message);
+            }
+        }
+
+        dropzone.addEventListener('click', () => videoInput.click());
+
+        videoInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                uploadVideo(e.target.files[0]);
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(name => {
+            dropzone.addEventListener(name, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(name => {
+            dropzone.addEventListener(name, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) uploadVideo(file);
+        });
+
+        // The whole page is a drop target too, but only the panel reacts
+        ['dragover', 'drop'].forEach(name => {
+            document.addEventListener(name, (e) => e.preventDefault());
+        });
+
+        // ===== Sampling plan preview =====
+
+        // Predict how many descriptions the current settings will produce, so
+        // the cost of a small time step is visible before the job is started
+        function updateStepHint() {
+            const step = parseFloat(stepValue.value);
+            const mode = stepMode.value;
+
+            if (!currentVideo) {
+                stepHint.textContent = mode === 'frames'
+                    ? `One description every ${step || '--'} frames`
+                    : `One description every ${step || '--'}s of video`;
+                return;
+            }
+
+            const fps = currentVideo.fps || 30;
+            const stride = mode === 'frames'
+                ? Math.max(1, Math.round(step))
+                : Math.max(1, Math.round((step || 0) * fps));
+
+            const first = Math.round(Math.max(0, parseFloat(startTime.value) || 0) * fps);
+            const endInput = parseFloat(endTime.value);
+            let last = (currentVideo.frame_count || 0) - 1;
+            if (!isNaN(endInput) && endInput > 0) {
+                last = Math.min(last, Math.round(endInput * fps));
+            }
+
+            let count = last < first ? 0 : Math.floor((last - first) / stride) + 1;
+            const cap = parseInt(maxFrames.value) || 0;
+            if (cap > 0) count = Math.min(count, cap);
+
+            const every = mode === 'frames'
+                ? `every ${stride} frames (${(stride / fps).toFixed(2)}s)`
+                : `every ${step}s`;
+            stepHint.textContent = `${count.toLocaleString()} description${count === 1 ? '' : 's'} - ${every}`;
+        }
+
+        [stepValue, stepMode, startTime, endTime, maxFrames].forEach(input => {
+            input.addEventListener('input', updateStepHint);
+            input.addEventListener('blur', () => {
+                input.classList.add('applied');
+                setTimeout(() => input.classList.remove('applied'), 600);
+            });
+        });
+
+        // Tooltip positioning - dynamically position tooltip to avoid clipping
+        document.querySelectorAll('.tooltip-wrapper').forEach(wrapper => {
+            const icon = wrapper.querySelector('.tooltip-icon');
+            const tooltip = wrapper.querySelector('.tooltip-text');
+
+            if (icon && tooltip) {
+                icon.addEventListener('mouseenter', () => {
+                    const rect = icon.getBoundingClientRect();
+                    const tooltipWidth = 380; // Match CSS width
+
+                    // Position below the icon
+                    let left = rect.left - 10; // Slight offset to left
+                    let top = rect.bottom + 8;
+
+                    // Ensure tooltip doesn't go off right edge of viewport
+                    if (left + tooltipWidth > window.innerWidth - 20) {
+                        left = window.innerWidth - tooltipWidth - 20;
+                    }
+
+                    // Ensure tooltip doesn't go off left edge
+                    if (left < 20) {
+                        left = 20;
+                    }
+
+                    tooltip.style.left = left + 'px';
+                    tooltip.style.top = top + 'px';
+                });
+            }
+        });
+
+        // Markdown rendering function
+        function renderMarkdown(text) {
+            if (!text) return '';
+            // Check if libraries are loaded
+            if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+                console.warn('Markdown libraries not loaded, falling back to plain text');
+                return text;
+            }
+            try {
+                // Configure marked options
+                marked.setOptions({
+                    breaks: true,  // Convert line breaks to <br>
+                    gfm: true,     // GitHub Flavored Markdown
+                });
+                // Parse markdown and sanitize HTML
+                const html = marked.parse(text);
+                return DOMPurify.sanitize(html, {
+                    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'a'],
+                    ALLOWED_ATTR: ['href', 'title'],
+                });
+            } catch (e) {
+                console.error('Error rendering markdown:', e);
+                return text; // Fallback to plain text on error
+            }
+        }
+
+        // Update markdown toggle UI
+        function updateMarkdownToggleUI() {
+            const contentDiv = document.getElementById('resultTextContent');
+            if (markdownEnabled) {
+                markdownIcon.innerHTML = '<i data-lucide="code"></i>';
+                markdownText.textContent = 'Markdown';
+                if (contentDiv) {
+                    contentDiv.classList.add('markdown-rendered');
+                } else {
+                    resultText.classList.add('markdown-rendered');
+                }
+            } else {
+                markdownIcon.innerHTML = '<i data-lucide="file-text"></i>';
+                markdownText.textContent = 'Plain Text';
+                if (contentDiv) {
+                    contentDiv.classList.remove('markdown-rendered');
+                } else {
+                    resultText.classList.remove('markdown-rendered');
+                }
+            }
+            lucide.createIcons();
+        }
+
+        // Markdown toggle handler
+        markdownToggle.addEventListener('click', () => {
+            markdownEnabled = !markdownEnabled;
+            localStorage.setItem('markdownEnabled', markdownEnabled.toString());
+            updateMarkdownToggleUI();
+
+            // Re-render current text with new mode
+            if (lastText) {
+                updateResultText(lastText);
+            }
+        });
+
+        // Initialize markdown toggle state
+        updateMarkdownToggleUI();
+
+        // Copy to clipboard functionality
+        copyButton.addEventListener('click', async () => {
+            const contentDiv = document.getElementById('resultTextContent');
+            let textToCopy = '';
+
+            if (contentDiv) {
+                // If markdown is enabled, copy the raw text (not HTML)
+                if (markdownEnabled) {
+                    // Get the raw text by reading from lastText or extracting from content
+                    textToCopy = lastText || contentDiv.innerText || contentDiv.textContent;
+                } else {
+                    textToCopy = contentDiv.textContent || contentDiv.innerText;
+                }
+            } else {
+                textToCopy = resultText.textContent || resultText.innerText;
+            }
+
+            if (!textToCopy || textToCopy.trim() === '') {
+                return; // Nothing to copy
+            }
+
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+
+                // Visual feedback
+                const originalHTML = copyButton.innerHTML;
+
+                copyButton.classList.add('copied');
+                copyButton.innerHTML = '<i data-lucide="check"></i>';
+                lucide.createIcons();
+
+                // Reset after 0.8 seconds
+                setTimeout(() => {
+                    copyButton.classList.remove('copied');
+                    copyButton.innerHTML = originalHTML;
+                    lucide.createIcons();
+                }, 800);
+            } catch (err) {
+                console.error('Failed to copy text:', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = textToCopy;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    copyButton.classList.add('copied');
+                    setTimeout(() => copyButton.classList.remove('copied'), 500);
+                } catch (e) {
+                    console.error('Fallback copy failed:', e);
+                }
+                document.body.removeChild(textArea);
+            }
+        });
+
+        // Function to update result text (handles both markdown and plain text)
+        function updateResultText(text) {
+            const contentDiv = document.getElementById('resultTextContent');
+            if (!contentDiv) {
+                // Fallback if content div doesn't exist yet
+                if (markdownEnabled) {
+                    resultText.innerHTML = renderMarkdown(text);
+                } else {
+                    resultText.textContent = text;
+                }
+                return;
+            }
+            // Update only the content div, preserving the button
+            if (markdownEnabled) {
+                contentDiv.innerHTML = renderMarkdown(text);
+            } else {
+                contentDiv.textContent = text;
+            }
+        }
+
+        // Theme management: Honor OS preference with manual override support
+        function applyTheme(theme) {
+            // theme can be 'light', 'dark', or 'auto'
+            if (theme === 'light') {
+                document.body.classList.add('light-theme');
+                themeIcon.innerHTML = '<i data-lucide="sun"></i>';
+                themeText.textContent = 'Light';
+            } else if (theme === 'dark') {
+                document.body.classList.remove('light-theme');
+                themeIcon.innerHTML = '<i data-lucide="moon"></i>';
+                themeText.textContent = 'Dark';
+            } else { // 'auto' - follow OS preference
+                const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+                if (prefersLight) {
+                    document.body.classList.add('light-theme');
+                } else {
+                    document.body.classList.remove('light-theme');
+                }
+                // Always show monitor icon for AUTO mode
+                themeIcon.innerHTML = '<i data-lucide="monitor"></i>';
+                themeText.textContent = 'Auto';
+            }
+            lucide.createIcons();
+
+            // Update product image for theme-aware icons (Mac/PC workstation icons)
+            if (window.lastSystemStats) {
+                const productImg = document.getElementById('systemProductImage');
+                const imageSrc = getSystemProductImage(window.lastSystemStats);
+                if (imageSrc) {
+                    productImg.src = imageSrc;
+                    // Also update background image
+                    const systemStatsCard = document.getElementById('systemStatsCard');
+                    systemStatsCard.style.setProperty('--system-bg-image', `url('${imageSrc}')`);
+                }
+            }
+        }
+
+        // Theme Toggle: cycles through Auto -> Light -> Dark -> Auto
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = localStorage.getItem('theme') || 'auto';
+            let nextTheme;
+
+            if (currentTheme === 'auto' || !currentTheme) {
+                nextTheme = 'light';
+            } else if (currentTheme === 'light') {
+                nextTheme = 'dark';
+            } else { // dark
+                nextTheme = 'auto';
+            }
+
+            // Only save manual overrides (light/dark) to localStorage
+            // Don't save 'auto' - always check OS preference when in auto mode
+            if (nextTheme === 'auto') {
+                localStorage.removeItem('theme');
+            } else {
+                localStorage.setItem('theme', nextTheme);
+            }
+            applyTheme(nextTheme);
+        });
+
+        // Load saved theme or detect OS preference
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+            // User has manually set a preference - use it
+            applyTheme(savedTheme);
+        } else {
+            // No manual preference saved - follow OS preference
+            applyTheme('auto');
+        }
+
+        // Listen for OS preference changes when in 'auto' mode
+        const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: light)');
+        colorSchemeQuery.addEventListener('change', (e) => {
+            const currentTheme = localStorage.getItem('theme');
+            // Only update if user hasn't manually set a preference
+            if (!currentTheme || currentTheme === 'auto') {
+                applyTheme('auto');
+            }
+        });
+
+        // Load saved colorful UI accents setting (default: disabled for clean two-tone system)
+        const colorfulFocusToggle = document.getElementById('colorfulFocusToggle');
+        const colorfulFocusSaved = localStorage.getItem('colorfulFocus');
+        if (colorfulFocusSaved === 'true') {
+            document.body.classList.add('colorful-focus');
+            colorfulFocusToggle.checked = true;
+        } else {
+            // Default: neutral white/gray icons and focus glows with green flash
+            document.body.classList.remove('colorful-focus');
+            colorfulFocusToggle.checked = false;
+        }
+
+        // Settings Modal
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsClose = document.getElementById('settingsClose');
+        const popInToggle = document.getElementById('popInToggle');
+        const glowToggle = document.getElementById('glowToggle');
+        const fadeToggle = document.getElementById('fadeToggle');
+        const overlayPosition = document.getElementById('overlayPosition');
+        const layoutOrder = document.getElementById('layoutOrder');
+        const videoOverlay = document.getElementById('videoOverlay');
+        const gpuUpdateInterval = document.getElementById('gpuUpdateInterval');
+        const autoScrollToggle = document.getElementById('autoScrollToggle');
+        const followToggle = document.getElementById('followToggle');
+        const newestFirstToggle = document.getElementById('newestFirstToggle');
+
+        // Settings state
+        const settings = {
+            popIn: localStorage.getItem('popIn') !== 'false',
+            glow: localStorage.getItem('glow') !== 'false',
+            fade: localStorage.getItem('fade') !== 'false',
+            overlayPosition: localStorage.getItem('overlayPosition') || 'none',
+            layoutOrder: localStorage.getItem('layoutOrder') || 'vlm-first',
+            gpuUpdateInterval: parseFloat(localStorage.getItem('gpuUpdateInterval')) || 0.25,
+            autoScroll: localStorage.getItem('autoScroll') !== 'false',
+            follow: localStorage.getItem('follow') !== 'false',
+            newestFirst: localStorage.getItem('newestFirst') === 'true'
+        };
+
+        // Load saved settings
+        popInToggle.checked = settings.popIn;
+        glowToggle.checked = settings.glow;
+        fadeToggle.checked = settings.fade;
+        overlayPosition.value = settings.overlayPosition;
+        layoutOrder.value = settings.layoutOrder;
+        gpuUpdateInterval.value = settings.gpuUpdateInterval;
+        autoScrollToggle.checked = settings.autoScroll;
+        followToggle.checked = settings.follow;
+        newestFirstToggle.checked = settings.newestFirst;
+
+        autoScrollToggle.addEventListener('change', (e) => {
+            settings.autoScroll = e.target.checked;
+            localStorage.setItem('autoScroll', settings.autoScroll);
+        });
+
+        followToggle.addEventListener('change', (e) => {
+            settings.follow = e.target.checked;
+            localStorage.setItem('follow', settings.follow);
+            followBtn.classList.toggle('active', settings.follow);
+        });
+
+        newestFirstToggle.addEventListener('change', (e) => {
+            settings.newestFirst = e.target.checked;
+            localStorage.setItem('newestFirst', settings.newestFirst);
+            renderTimeline();
+        });
+
+        // Apply overlay position
+        function applyOverlayPosition(position) {
+            videoOverlay.classList.remove('show', 'top', 'bottom');
+            const resultText = document.getElementById('resultText');
+
+            if (position !== 'none') {
+                // Overlay enabled - show on video, hide response balloon (keep prompt visible)
+                videoOverlay.classList.add('show', position);
+                resultText.style.display = 'none';
+            } else {
+                // Overlay disabled - hide from video, show response balloon
+                resultText.style.display = 'block';
+            }
+        }
+        applyOverlayPosition(settings.overlayPosition);
+
+        // Apply layout order
+        function applyLayoutOrder(order) {
+            const mainContent = document.querySelector('.main-content');
+            const videoCard = document.querySelector('.video-card');
+            const resultCard = document.querySelector('.result-card');
+
+            if (order === 'vlm-first') {
+                // VLM Output Info at top, video player below (default)
+                mainContent.insertBefore(resultCard, videoCard);
+            } else {
+                // Video player at top, VLM Output Info below
+                mainContent.insertBefore(videoCard, resultCard);
+            }
+        }
+        applyLayoutOrder(settings.layoutOrder);
+
+        // Open settings modal
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('show');
+        });
+
+        // Close settings modal
+        settingsClose.addEventListener('click', () => {
+            settingsModal.classList.remove('show');
+        });
+
+        // Close modal when clicking outside
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('show');
+            }
+        });
+
+        // Handle settings changes
+        popInToggle.addEventListener('change', (e) => {
+            settings.popIn = e.target.checked;
+            localStorage.setItem('popIn', settings.popIn);
+        });
+
+        glowToggle.addEventListener('change', (e) => {
+            settings.glow = e.target.checked;
+            localStorage.setItem('glow', settings.glow);
+        });
+
+        fadeToggle.addEventListener('change', (e) => {
+            settings.fade = e.target.checked;
+            localStorage.setItem('fade', settings.fade);
+        });
+
+        colorfulFocusToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('colorfulFocus', enabled);
+            if (enabled) {
+                document.body.classList.add('colorful-focus');
+            } else {
+                document.body.classList.remove('colorful-focus');
+            }
+            // Force icon re-render to apply new colors
+            lucide.createIcons();
+        });
+
+        overlayPosition.addEventListener('change', (e) => {
+            settings.overlayPosition = e.target.value;
+            localStorage.setItem('overlayPosition', settings.overlayPosition);
+            applyOverlayPosition(settings.overlayPosition);
+        });
+
+        layoutOrder.addEventListener('change', (e) => {
+            settings.layoutOrder = e.target.value;
+            localStorage.setItem('layoutOrder', settings.layoutOrder);
+            applyLayoutOrder(settings.layoutOrder);
+        });
+
+        gpuUpdateInterval.addEventListener('change', (e) => {
+            const newInterval = parseFloat(e.target.value);
+            if (!isNaN(newInterval) && newInterval >= 0.1 && newInterval <= 5.0) {
+                settings.gpuUpdateInterval = newInterval;
+                localStorage.setItem('gpuUpdateInterval', settings.gpuUpdateInterval);
+                console.log(`🔄 GPU graph update interval changed to ${newInterval}s (updates every ${newInterval}s)`);
+                console.log(`📊 Note: Server still sends stats every 0.25s, but graphs will only redraw at the configured rate`);
+                // Reset lastGPUUpdate to allow immediate update with new interval
+                lastGPUUpdate = 0;
+            } else {
+                console.warn('Invalid GPU update interval, keeping previous value');
+                e.target.value = settings.gpuUpdateInterval;
+            }
+        });
+
+        // Panel Toggle
+        function togglePanel(panelId) {
+            const content = document.getElementById(panelId);
+            const toggle = document.getElementById(panelId + 'Toggle');
+            content.classList.toggle('collapsed');
+            toggle.classList.toggle('collapsed');
+        }
+
+        // API Key Field Toggle
+        function toggleApiKeyField() {
+            const field = document.getElementById('apiKeyField');
+            const toggle = document.getElementById('apiKeyToggle');
+            field.classList.toggle('collapsed');
+            toggle.classList.toggle('collapsed');
+        }
+
+        // Check if API Base URL requires API key
+        function checkApiKeyRequirement(url) {
+            const apiKeyField = document.getElementById('apiKeyField');
+            const apiKeyToggle = document.getElementById('apiKeyToggle');
+
+            // Check if URL is a remote service (not localhost or 127.0.0.1)
+            const isLocal = url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0');
+            const isRemote = !isLocal;
+
+            if (isRemote) {
+                // Show API key field for remote services
+                apiKeyField.classList.remove('collapsed');
+                apiKeyToggle.classList.remove('collapsed');
+                console.log('Remote API detected - API Key field expanded');
+            } else {
+                // Hide API key field for local services
+                apiKeyField.classList.add('collapsed');
+                apiKeyToggle.classList.add('collapsed');
+                console.log('Local API detected - API Key field collapsed');
+            }
+        }
+
+        // Status Update
+        function updateStatus(message, state) {
+            connectionStatus.textContent = message;
+            connectionStatus.className = `status-badge ${state}`;
+        }
+
+        // Detect Local VLM Services
+        async function detectServices() {
+            try {
+                const response = await fetch('/detect-services');
+                const data = await response.json();
+
+                if (data.default) {
+                    const service = data.default;
+                    console.log('Detected service:', service.name);
+
+                    // Update API Base URL
+                    apiBaseUrl.value = service.url;
+
+                    // Check if API key is required
+                    checkApiKeyRequirement(service.url);
+                    updateSystemStatsVisibility(service.url);
+
+                    // Update hint text
+                    const hintDiv = apiBaseUrl.nextElementSibling;
+                    if (data.detected.length > 1) {
+                        const serviceNames = data.detected.map(s => s.name).join(', ');
+                        hintDiv.textContent = `Detected: ${serviceNames}`;
+                    } else if (service.name === 'NVIDIA API Catalog') {
+                        hintDiv.textContent = 'No local VLM services found. Using NVIDIA API Catalog (requires API key from build.nvidia.com)';
+                    }
+                }
+            } catch (error) {
+                console.error('Error detecting services:', error);
+                // Default to showing API key field on error
+                checkApiKeyRequirement('https://');
+            }
+        }
+
+        // Fetch Models
+        async function fetchModels() {
+            try {
+                modelSelect.innerHTML = '<option value="">Loading models...</option>';
+
+                // Get current API settings from UI
+                const currentApiBase = apiBaseUrl.value.trim();
+                const currentApiKey = apiKey.value.trim();
+
+                // Build query params
+                const params = new URLSearchParams();
+                if (currentApiBase) {
+                    params.append('api_base', currentApiBase);
+                }
+                if (currentApiKey) {
+                    params.append('api_key', currentApiKey);
+                }
+
+                const url = `/models${params.toString() ? '?' + params.toString() : ''}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.models && data.models.length > 0) {
+                    modelSelect.innerHTML = '';
+                    let currentModel = null;
+                    let autoSelectedModel = null;
+
+                    data.models.forEach((model, index) => {
+                        const option = document.createElement('option');
+                        option.value = model.id;
+                        option.textContent = model.id;
+                        if (model.current) {
+                            option.selected = true;
+                            currentModel = model.id;
+                        }
+                        modelSelect.appendChild(option);
+                    });
+
+                    // If no current model, auto-select first model and apply
+                    if (!currentModel && data.models.length > 0) {
+                        autoSelectedModel = data.models[0].id;
+                        modelSelect.value = autoSelectedModel;
+                        currentModel = autoSelectedModel;
+
+                        // Auto-apply the new model
+                        console.log(`Auto-selected model: ${autoSelectedModel}`);
+                        applyApiSettings({ showFeedback: false });
+                    }
+
+                    // Update model name in VLM output header
+                    if (currentModel) {
+                        document.getElementById('modelName').textContent = currentModel;
+                    }
+                } else {
+                    modelSelect.innerHTML = '<option value="">No models available</option>';
+                }
+            } catch (error) {
+                console.error('Error fetching models:', error);
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            }
+        }
+
+        // Handle model change
+        modelSelect.addEventListener('change', (e) => {
+            const newModel = e.target.value;
+            if (!newModel) return;
+
+            // Update model name in VLM output header
+            document.getElementById('modelName').textContent = newModel;
+
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                // Send model, API base, and API key together
+                websocket.send(JSON.stringify({
+                    type: 'update_model',
+                    model: newModel,
+                    api_base: apiBaseUrl.value.trim(),
+                    api_key: apiKey.value.trim()
+                }));
+                updateStatus('Model configured', 'connected');
+            }
+
+            // Trigger flash animation
+            modelSelect.classList.add('applied');
+            setTimeout(() => {
+                modelSelect.classList.remove('applied');
+            }, 600);
+        });
+
+        // Also trigger flash on blur (when dropdown closes)
+        modelSelect.addEventListener('blur', () => {
+            const currentModel = modelSelect.value;
+            if (currentModel) {
+                // Trigger flash animation
+                modelSelect.classList.add('applied');
+                setTimeout(() => {
+                    modelSelect.classList.remove('applied');
+                }, 600);
+            }
+        });
+
+        // Helper function to apply prompt settings
+        function applyPromptSettings() {
+            const newPrompt = promptText.value.trim();
+            const tokens = parseInt(maxTokens.value) || 512;
+
+            if (!newPrompt) {
+                return; // Silently skip if empty
+            }
+
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({
+                    type: 'update_prompt',
+                    prompt: newPrompt,
+                    max_tokens: tokens
+                }));
+
+                // Update the displayed prompt (chat bubble style)
+                const promptPreview = newPrompt.length > 150 ? newPrompt.substring(0, 150) + '...' : newPrompt;
+                currentPrompt.textContent = `Prompt: ${promptPreview}`;
+            }
+        }
+
+        // Handle preset selection
+        promptPreset.addEventListener('change', (e) => {
+            if (e.target.value) {
+                promptText.value = e.target.value;
+                applyPromptSettings();
+
+                // Trigger flash animation to show prompt was applied
+                promptText.classList.add('applied');
+                setTimeout(() => {
+                    promptText.classList.remove('applied');
+                }, 600); // Match animation duration
+            }
+        });
+
+        // Auto-apply prompt on blur (when user finishes editing)
+        promptText.addEventListener('blur', () => {
+            applyPromptSettings();
+
+            // Trigger flash animation to show prompt was applied
+            promptText.classList.add('applied');
+            setTimeout(() => {
+                promptText.classList.remove('applied');
+            }, 600); // Match animation duration
+        });
+
+        // Auto-apply when max tokens changes
+        maxTokens.addEventListener('change', () => {
+            applyPromptSettings();
+
+            // Trigger flash animation to show setting was applied
+            maxTokens.classList.add('applied');
+            setTimeout(() => {
+                maxTokens.classList.remove('applied');
+            }, 600); // Match animation duration
+        });
+
+        // Also trigger flash on blur (after tabbing away or clicking out)
+        maxTokens.addEventListener('blur', () => {
+            applyPromptSettings();
+
+            // Trigger flash animation
+            maxTokens.classList.add('applied');
+            setTimeout(() => {
+                maxTokens.classList.remove('applied');
+            }, 600);
+        });
+
+        refreshModelsBtn.addEventListener('click', fetchModels);
+
+        // Helper function to apply API settings to server
+        function applyApiSettings(options = {}) {
+            const currentApiBase = apiBaseUrl.value.trim();
+            const currentApiKey = apiKey.value.trim();
+            const currentModel = modelSelect.value;
+
+            if (!currentApiBase) {
+                return; // Silently skip if no API base
+            }
+
+            if (!currentModel) {
+                return; // Silently skip if no model selected yet
+            }
+
+            // Send update to server
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify({
+                    type: 'update_model',
+                    model: currentModel,
+                    api_base: currentApiBase,
+                    api_key: currentApiKey
+                }));
+
+                if (options.showFeedback) {
+                    updateStatus('API settings updated', 'connected');
+                }
+
+                // Refresh models from new endpoint if requested
+                if (options.refreshModels) {
+                    fetchModels();
+                }
+            }
+        }
+
+        // Auto-apply API settings when API Base URL changes
+        apiBaseUrl.addEventListener('blur', (e) => {
+            checkApiKeyRequirement(e.target.value);
+            updateSystemStatsVisibility(e.target.value);
+            applyApiSettings({ refreshModels: true, showFeedback: true });
+
+            // Trigger flash animation
+            apiBaseUrl.classList.add('applied');
+            setTimeout(() => {
+                apiBaseUrl.classList.remove('applied');
+            }, 600);
+        });
+
+        apiBaseUrl.addEventListener('change', (e) => {
+            checkApiKeyRequirement(e.target.value);
+            updateSystemStatsVisibility(e.target.value);
+            applyApiSettings({ refreshModels: true, showFeedback: true });
+
+            // Trigger flash animation
+            apiBaseUrl.classList.add('applied');
+            setTimeout(() => {
+                apiBaseUrl.classList.remove('applied');
+            }, 600);
+        });
+
+        // Auto-apply API settings when API Key changes (with debounce)
+        let apiKeyDebounceTimer;
+        apiKey.addEventListener('input', () => {
+            clearTimeout(apiKeyDebounceTimer);
+            apiKeyDebounceTimer = setTimeout(() => {
+                applyApiSettings({ showFeedback: false });
+            }, 1000); // Wait 1 second after user stops typing
+        });
+
+        // Flash animation when API Key loses focus
+        apiKey.addEventListener('blur', () => {
+            clearTimeout(apiKeyDebounceTimer);
+            applyApiSettings({ showFeedback: false });
+
+            // Trigger flash animation
+            apiKey.classList.add('applied');
+            setTimeout(() => {
+                apiKey.classList.remove('applied');
+            }, 600);
+        });
+
+        // API Presets Menu
+        const apiPresetsBtn = document.getElementById('apiPresetsBtn');
+        const apiPresetsMenu = document.getElementById('apiPresetsMenu');
+
+        apiPresetsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            apiPresetsMenu.style.display = apiPresetsMenu.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!apiPresetsMenu.contains(e.target) && e.target !== apiPresetsBtn) {
+                apiPresetsMenu.style.display = 'none';
+            }
+        });
+
+        // Handle preset selection
+        document.querySelectorAll('.api-preset-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const url = e.currentTarget.getAttribute('data-url');
+                apiBaseUrl.value = url;
+                apiPresetsMenu.style.display = 'none';
+
+                // Trigger checks
+                checkApiKeyRequirement(url);
+                updateSystemStatsVisibility(url);
+
+                // Auto-apply new API settings
+                applyApiSettings({ refreshModels: true, showFeedback: true });
+
+                // Update hint
+                const hint = document.getElementById('apiBaseHint');
+                const serviceName = e.currentTarget.querySelector('strong').textContent;
+                hint.textContent = `Using ${serviceName}`;
+            });
+        });
+
+        // Update system stats visibility based on API endpoint
+        function updateSystemStatsVisibility(url) {
+            const systemStatsCard = document.getElementById('systemStatsCard');
+            const isLocal = url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0');
+
+            if (isLocal) {
+                systemStatsCard.classList.remove('cloud-api');
+            } else {
+                systemStatsCard.classList.add('cloud-api');
+            }
+        }
+
+        // ===== Analysis timeline =====
+
+        function seekVideoTo(seconds) {
+            if (!currentVideo || !isFinite(seconds)) return;
+            try {
+                videoElement.currentTime = Math.max(0, seconds);
+            } catch (err) {
+                console.debug('Could not seek the player:', err);
+            }
+        }
+
+        function buildTimelineItem(result) {
+            const item = document.createElement('div');
+            item.className = 'timeline-item' + (result.ok === false ? ' failed' : '');
+            item.dataset.step = result.step;
+            item.title = 'Jump the player to ' + result.timecode;
+
+            if (result.frame_url) {
+                const img = document.createElement('img');
+                img.className = 'timeline-thumb';
+                img.loading = 'lazy';
+                img.alt = `Frame at ${result.timecode}`;
+                img.src = result.frame_url;
+                // A frame that failed to save must not leave a broken icon
+                img.onerror = () => { img.className = 'timeline-thumb-missing'; img.removeAttribute('src'); };
+                item.appendChild(img);
+            } else {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'timeline-thumb-missing';
+                item.appendChild(placeholder);
+            }
+
+            const body = document.createElement('div');
+            body.className = 'timeline-body';
+
+            const meta = document.createElement('div');
+            meta.className = 'timeline-meta';
+            const time = document.createElement('span');
+            time.className = 'timeline-time';
+            time.textContent = result.timecode;
+            meta.appendChild(time);
+            const detail = document.createElement('span');
+            detail.textContent = `#${result.step} - frame ${result.frame_index} - ${Math.round(result.latency_ms)}ms`;
+            meta.appendChild(detail);
+            body.appendChild(meta);
+
+            const text = document.createElement('div');
+            text.className = 'timeline-text';
+            text.textContent = result.text;
+            body.appendChild(text);
+
+            item.appendChild(body);
+            item.addEventListener('click', () => seekVideoTo(result.video_time_s));
+            return item;
+        }
+
+        function renderTimeline() {
+            timeline.querySelectorAll('.timeline-item').forEach(node => node.remove());
+
+            const ordered = settings.newestFirst ? [...timelineItems].reverse() : timelineItems;
+            ordered.forEach(result => timeline.appendChild(buildTimelineItem(result)));
+
+            const latest = settings.newestFirst
+                ? timeline.querySelector('.timeline-item')
+                : timeline.querySelector('.timeline-item:last-of-type');
+            if (latest) latest.classList.add('latest');
+
+            timelineEmpty.style.display = timelineItems.length ? 'none' : 'block';
+            timelineCount.textContent = timelineItems.length;
+        }
+
+        function addTimelineResult(result) {
+            timelineItems.push(result);
+            const node = buildTimelineItem(result);
+
+            timeline.querySelectorAll('.timeline-item.latest')
+                .forEach(prev => prev.classList.remove('latest'));
+            node.classList.add('latest');
+
+            if (settings.newestFirst) {
+                timeline.insertBefore(node, timeline.firstChild);
+            } else {
+                timeline.appendChild(node);
+            }
+
+            timelineEmpty.style.display = 'none';
+            timelineCount.textContent = timelineItems.length;
+
+            if (settings.autoScroll) {
+                node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+            if (settings.follow) {
+                seekVideoTo(result.video_time_s);
+            }
+        }
+
+        function clearTimeline() {
+            timelineItems = [];
+            renderTimeline();
+        }
+
+        document.getElementById('timelineCopyBtn').addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const original = btn.innerHTML;
+            const name = currentVideo ? (currentVideo.original_filename || currentVideo.filename) : 'video';
+            const text = [`# ${name}`, ...timelineItems.map(r => `[${r.timecode}] ${r.text}`)].join('\n');
+
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.innerHTML = 'Copied';
+            } catch (err) {
+                console.error('Clipboard write failed:', err);
+                btn.innerHTML = 'Failed';
+            }
+            setTimeout(() => { btn.innerHTML = original; lucide.createIcons(); }, 1500);
+        });
+
+        document.getElementById('timelineDownloadBtn').addEventListener('click', () => {
+            window.location.href = '/api/transcript/download';
+        });
+
+        followBtn.classList.toggle('active', settings.follow);
+        followBtn.addEventListener('click', () => {
+            settings.follow = !settings.follow;
+            localStorage.setItem('follow', settings.follow);
+            followToggle.checked = settings.follow;
+            followBtn.classList.toggle('active', settings.follow);
+        });
+
+        // ===== Job progress =====
+
+        function renderJobProgress(job) {
+            if (!job) return;
+
+            currentJobId = job.job_id;
+            progressGroup.style.display = 'block';
+
+            const pct = Math.round((job.progress || 0) * 100);
+            progressFill.style.width = `${pct}%`;
+            progressFill.classList.toggle('paused', job.state === 'paused');
+
+            progressCount.textContent = `${job.analyzed} / ${job.total}` +
+                (job.failed ? ` (${job.failed} failed)` : '');
+
+            if (job.state === 'running' && job.eta_s !== null && job.eta_s !== undefined) {
+                progressEta.textContent = `${pct}% - about ${formatClock(job.eta_s)} left`;
+            } else if (job.state === 'running') {
+                progressEta.textContent = `${pct}%`;
+            } else {
+                progressEta.textContent = `${job.state} - ${formatClock(job.elapsed_s)} elapsed`;
+            }
+
+            setRunningState(job.active === true, job.state === 'paused');
+        }
+
+        // One place decides what the controls look like, so a job that ends on
+        // its own leaves the UI in the same state as one the user stopped
+        function setRunningState(running, paused) {
+            isAnalysisRunning = running;
+            isPaused = !!paused;
+
+            startBtn.disabled = running || !currentVideo;
+            stopBtn.disabled = !running;
+            pauseBtn.disabled = !running;
+
+            pauseBtn.innerHTML = paused
+                ? '<i data-lucide="play" style="width: 14px; height: 14px; margin-right: 4px;"></i>Resume'
+                : '<i data-lucide="pause" style="width: 14px; height: 14px; margin-right: 4px;"></i>Pause';
+
+            [stepValue, stepMode, startTime, endTime, maxFrames, frameWidth, carryContext]
+                .forEach(input => { input.disabled = running; });
+            dropzone.style.pointerEvents = running ? 'none' : '';
+            dropzone.style.opacity = running ? '0.5' : '';
+
+            lucide.createIcons();
+        }
+
+        // Sparkline Drawing
+        function drawSparkline(canvas, data, color) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (!data || data.length === 0) return;
+
+            // Filter out null/undefined values and convert to numbers
+            const validData = data.map(v => v === null || v === undefined ? 0 : v);
+            const max = Math.max(...validData, 1);
+            const step = width / (validData.length - 1 || 1);
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            validData.forEach((value, index) => {
+                const x = index * step;
+                const y = height - (value / max) * height;
+
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+
+            ctx.stroke();
+
+            ctx.lineTo(width, height);
+            ctx.lineTo(0, height);
+            ctx.closePath();
+            ctx.fillStyle = color + '20';
+            ctx.fill();
+        }
+
+        // Get product image based on system stats
+        function getSystemProductImage(stats) {
+            const productName = stats.product_name || '';
+            const boardName = stats.board_name || '';
+            const platform = stats.platform || '';
+            const gpuName = stats.gpu_name || '';
+
+            // Jetson boards
+            if (boardName.includes('Thor') || productName.includes('Thor')) {
+                return '/images/jetson-agx-thor-devkit_256px.png';
+            }
+            // Check for Orin Nano first (more specific)
+            if (boardName.includes('Orin Nano') || productName.includes('Orin Nano')) {
+                return '/images/jetson-orin-nano-devkit_217px.png';
+            }
+            // Then check for general Orin (AGX Orin)
+            if (boardName.includes('Orin') || productName.includes('Orin')) {
+                return '/images/jetson-agx-orin-devkit_256px.png';
+            }
+
+            // DGX systems
+            if (productName.includes('DGX Spark')) {
+                return '/images/dgx-spark_256px.png';
+            }
+
+            // MacBook - use laptop icon (theme-aware)
+            if (productName.includes('MacBook')) {
+                const isLightTheme = document.body.classList.contains('light-theme');
+                return isLightTheme ? '/images/m48-laptop-256px-blk.png' : '/images/m48-laptop-256px-wht.png';
+            }
+
+            // Other Mac products (Mac mini, iMac, Mac Studio, Mac Pro) - use workstation icon
+            if (productName.includes('Mac')) {
+                const isLightTheme = document.body.classList.contains('light-theme');
+                return isLightTheme ? '/images/m48-workstation-256px-blk.png' : '/images/m48-workstation-256px-wht.png';
+            }
+
+            // PC with NVIDIA GPU - show NVIDIA GPU chip image
+            if (gpuName.toLowerCase().includes('nvidia') || gpuName.toLowerCase().includes('geforce') ||
+                gpuName.toLowerCase().includes('rtx') || gpuName.toLowerCase().includes('gtx') ||
+                gpuName.toLowerCase().includes('quadro') || gpuName.toLowerCase().includes('tesla')) {
+                return '/images/m48-gpu-chip-text-256px-grn.png';
+            }
+
+            // Generic PC - use workstation icon
+            const isLightTheme = document.body.classList.contains('light-theme');
+            return isLightTheme ? '/images/m48-workstation-256px-blk.png' : '/images/m48-workstation-256px-wht.png';
+        }
+
+        // GPU Stats Throttling
+        let lastGPUUpdate = 0;
+        let pendingGPUStats = null;
+        let gpuUpdateCount = 0;
+
+        // Update GPU Stats (throttled based on settings.gpuUpdateInterval)
+        function updateGPUStats(stats) {
+            // Diagnostic logging (log every 10th update to avoid console spam)
+            gpuUpdateCount++;
+            if (gpuUpdateCount % 10 === 0) {
+                const gpuPercent = stats.gpu_percent !== null && stats.gpu_percent !== undefined ? stats.gpu_percent.toFixed(1) : 'N/A';
+                console.log(`📊 GPU Update #${gpuUpdateCount}: GPU=${gpuPercent}%, VRAM=${stats.vram_used_gb?.toFixed(1)}GB, CPU=${stats.cpu_percent?.toFixed(1)}%`);
+            }
+
+            // Update system info header
+            const hostname = stats.hostname || 'System';
+            const cpuModel = stats.cpu_model || 'Unknown CPU';
+            const gpuName = stats.gpu_name || 'Unknown GPU';
+            let boardName = stats.board_name;  // e.g., "Jetson AGX Thor Developer Kit"
+
+            // Safety check: ensure boardName is a string (not an object)
+            if (boardName && typeof boardName === 'object') {
+                console.warn('Board name is an object, expected string:', boardName);
+                boardName = null;  // Ignore it and fall back to regular display
+            }
+
+            // Format header based on platform
+            const systemInfoElem = document.getElementById('systemInfoHeader');
+            const productName = stats.product_name;
+            const gpuCores = stats.gpu_cores || 0;
+
+            // Check if there's a discrete GPU (not integrated graphics)
+            const hasDiscreteGPU = gpuName &&
+                !gpuName.includes('N/A') &&
+                !gpuName.includes('Unknown') &&
+                !gpuName.includes('Intel HD') &&
+                !gpuName.includes('Intel UHD') &&
+                !gpuName.includes('Intel Iris') &&
+                gpuName !== 'CPU';
+
+            // Helper: Remove frequency from CPU name for compact display
+            const cpuModelShort = cpuModel.replace(/\s*@\s*[\d.]+\s*[GM]Hz/gi, '').replace(/\s+/g, ' ').trim();
+
+            if (boardName && typeof boardName === 'string') {
+                // Jetson: Two-line format
+                // Line 1: Board name (hostname)
+                // Line 2: GPU name
+                const gpuDisplayName = gpuName.includes('GPU') ? gpuName : `${gpuName} GPU`;
+                systemInfoElem.innerHTML = `<b>${boardName}</b> (<code>${hostname}</code>)<br>${gpuDisplayName}`;
+            } else if (productName && productName.includes('DGX')) {
+                // DGX: Two-line format
+                // Line 1: DGX Product name (hostname)
+                // Line 2: GPU name
+                const gpuDisplayName = gpuName.includes('GPU') ? gpuName : `${gpuName} GPU`;
+                systemInfoElem.innerHTML = `<b>${productName}</b> (<code>${hostname}</code>)<br>${gpuDisplayName}`;
+            } else if (productName && productName.includes('Mac')) {
+                // Mac: Two-line format
+                // Line 1: Product name CPU (hostname)
+                // Line 2: GPU with cores
+                const gpuText = gpuCores > 0 ? `${gpuName} ${gpuCores}-core GPU` : `${gpuName} GPU`;
+                systemInfoElem.innerHTML = `${productName} ${cpuModel} (<code>${hostname}</code>)<br>${gpuText}`;
+            } else if (productName && !productName.includes('Mac') && !productName.includes('DGX')) {
+                // PC with product/motherboard name (branded or DIY)
+                if (hasDiscreteGPU) {
+                    // Has discrete GPU: Two-line format
+                    // Line 1: Product Name (hostname) with CPU (no frequency)
+                    // Line 2: GPU name
+                    const gpuDisplayName = gpuName.includes('GPU') ? gpuName : `${gpuName} GPU`;
+                    systemInfoElem.innerHTML = `<b>${productName}</b> (<code>${hostname}</code>) with ${cpuModelShort}<br>${gpuDisplayName}`;
+                } else {
+                    // No discrete GPU (integrated only): Two-line format
+                    // Line 1: Product Name (hostname)
+                    // Line 2: with CPU (including frequency)
+                    systemInfoElem.innerHTML = `<b>${productName}</b> (<code>${hostname}</code>)<br>with ${cpuModel}`;
+                }
+            } else {
+                // Generic PC
+                if (hasDiscreteGPU) {
+                    // Has discrete GPU: Two-line format
+                    // Line 1: Hostname with CPU (no frequency)
+                    // Line 2: GPU name
+                    const gpuDisplayName = gpuName.includes('GPU') ? gpuName : `${gpuName} GPU`;
+                    systemInfoElem.innerHTML = `<code>${hostname}</code> with ${cpuModelShort}<br>${gpuDisplayName}`;
+                } else {
+                    // No discrete GPU: Two-line format
+                    // Line 1: Hostname
+                    // Line 2: with CPU (including frequency)
+                    systemInfoElem.innerHTML = `<code>${hostname}</code><br>with ${cpuModel}`;
+                }
+            }
+
+            // Update product image (icon in header)
+            const productImg = document.getElementById('systemProductImage');
+            const imageSrc = getSystemProductImage(stats);
+            if (imageSrc) {
+                productImg.src = imageSrc;
+                productImg.style.display = 'block';
+
+                // Also set as background image for the card
+                const systemStatsCard = document.getElementById('systemStatsCard');
+                systemStatsCard.style.setProperty('--system-bg-image', `url('${imageSrc}')`);
+            } else {
+                productImg.style.display = 'none';
+            }
+
+            // GPU (Green)
+            const gpuPercent = stats.gpu_percent;
+            if (gpuPercent === null || gpuPercent === undefined) {
+                // GPU utilization unavailable (e.g., Mac without sudo)
+                document.getElementById('gpuUtil').textContent = 'N/A';
+                const gpuBar = document.getElementById('gpuUtilBar');
+                gpuBar.style.width = '0%';
+                gpuBar.style.background = '#666';  // Gray for unavailable
+            } else {
+                document.getElementById('gpuUtil').textContent = `${gpuPercent.toFixed(1)}%`;
+                const gpuBar = document.getElementById('gpuUtilBar');
+                gpuBar.style.width = `${gpuPercent}%`;
+                gpuBar.style.background = '#4CAF50';  // Green
+            }
+
+            // VRAM (Purple)
+            const vramUsed = stats.vram_used_gb;
+            const vramTotal = stats.vram_total_gb;
+            const vramPercent = stats.vram_percent;
+            if (vramUsed === null || vramUsed === undefined || vramTotal === null || vramTotal === undefined) {
+                // VRAM unavailable (e.g., GB10/Blackwell GPUs)
+                document.getElementById('vramUsage').textContent = 'N/A';
+                const vramBar = document.getElementById('vramBar');
+                vramBar.style.width = '0%';
+                vramBar.style.background = '#666';  // Gray for unavailable
+            } else {
+                document.getElementById('vramUsage').innerHTML = `${vramUsed.toFixed(1)}<span class="stat-value-denominator">/${vramTotal.toFixed(1)} GB</span>`;
+                const vramBar = document.getElementById('vramBar');
+                vramBar.style.width = `${vramPercent}%`;
+                vramBar.style.background = '#9C27B0';  // Purple
+            }
+
+            // CPU (Blue)
+            const cpuPercent = stats.cpu_percent || 0;
+            document.getElementById('cpuUtil').textContent = `${cpuPercent.toFixed(1)}%`;
+            const cpuBar = document.getElementById('cpuBar');
+            cpuBar.style.width = `${cpuPercent}%`;
+            cpuBar.style.background = '#2196F3';  // Blue
+
+            // RAM (Orange)
+            const ramUsed = stats.ram_used_gb || 0;
+            const ramTotal = stats.ram_total_gb || 0;
+            const ramPercent = stats.ram_percent || 0;
+            document.getElementById('ramUsage').innerHTML = `${ramUsed.toFixed(1)}<span class="stat-value-denominator">/${ramTotal.toFixed(1)} GB</span>`;
+            const ramBar = document.getElementById('ramBar');
+            ramBar.style.width = `${ramPercent}%`;
+            ramBar.style.background = '#FF9800';  // Orange
+
+            // Sparklines
+            if (stats.history) {
+                const canvases = {
+                    gpu: document.getElementById('gpuUtilSparkline'),
+                    vram: document.getElementById('vramSparkline'),
+                    cpu: document.getElementById('cpuSparkline'),
+                    ram: document.getElementById('ramSparkline')
+                };
+
+                // Set canvas dimensions (use offsetWidth with fallback to parent width)
+                Object.values(canvases).forEach(canvas => {
+                    const width = canvas.offsetWidth || canvas.parentElement.offsetWidth || 300;
+                    const height = canvas.offsetHeight || 40;
+
+                    // Only update if dimensions changed (avoid unnecessary canvas clears)
+                    if (canvas.width !== width || canvas.height !== height) {
+                        canvas.width = width;
+                        canvas.height = height;
+                    }
+                });
+
+                drawSparkline(canvases.gpu, stats.history.gpu_util, '#4CAF50');  // Green
+                drawSparkline(canvases.vram, stats.history.vram_used, '#9C27B0'); // Purple
+                drawSparkline(canvases.cpu, stats.history.cpu_util, '#2196F3');   // Blue
+                drawSparkline(canvases.ram, stats.history.ram_used, '#FF9800');   // Orange
+            }
+        }
+
+        // Periodic check for pending GPU stats updates
+        setInterval(() => {
+            if (pendingGPUStats) {
+                const now = Date.now();
+                const intervalMs = settings.gpuUpdateInterval * 1000;
+
+                if (now - lastGPUUpdate >= intervalMs) {
+                    updateGPUStats(pendingGPUStats);
+                    lastGPUUpdate = now;
+                    pendingGPUStats = null;
+                }
+            }
+        }, 50);  // Check every 50ms for smooth updates
+
+        // WebSocket Connection
+        function connectWebSocket() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                return;
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            websocket = new WebSocket(wsUrl);
+
+            websocket.onopen = () => {
+                console.log('WebSocket connected');
+                updateStatus('Connected', 'connected');
+
+                // Send current model/API settings to server after WebSocket connects
+                // This ensures auto-selected models are properly initialized on the server side
+                // Fix for race condition: page load might auto-select model before WS connects
+                const currentModel = modelSelect.value;
+                if (currentModel) {
+                    console.log('Initializing server with current model:', currentModel);
+                    applyApiSettings({ showFeedback: false });
+                }
+            };
+
+            websocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'video_analysis') {
+                    const result = data.result;
+
+                    // Trigger animations for new messages based on settings
+                    if (result.text !== lastText) {
+                        resultText.classList.remove('fade');
+                        resultText.classList.remove('new-message');
+
+                        // Apply pop-in animation if enabled
+                        if (settings.popIn) {
+                            // Force reflow to restart animation
+                            void resultText.offsetWidth;
+
+                            resultText.classList.add('new-message');
+
+                            // Add glow effect if enabled
+                            if (settings.glow) {
+                                resultText.classList.add('with-glow');
+                            }
+
+                            // Remove animation classes after it completes
+                            setTimeout(() => {
+                                resultText.classList.remove('new-message');
+                                resultText.classList.remove('with-glow');
+                            }, 400);
+                        }
+
+                        if (fadeTimeout) {
+                            clearTimeout(fadeTimeout);
+                        }
+
+                        // Start fade after 2 seconds if enabled
+                        if (settings.fade) {
+                            fadeTimeout = setTimeout(() => {
+                                resultText.classList.add('fade');
+                            }, 2000);
+                        }
+                    }
+
+                    updateResultText(result.text);
+                    lastText = result.text;
+
+                    // Update video overlay (always, visibility is controlled by CSS)
+                    videoOverlay.textContent = `[${result.timecode}] ${result.text}`;
+
+                    addTimelineResult(result);
+                    renderJobProgress(data.job);
+
+                    if (data.metrics) {
+                        metricsInline.style.display = 'flex';
+                        latencyValue.textContent = Math.round(data.metrics.last_latency_ms);
+                        avgLatencyValue.textContent = Math.round(data.metrics.avg_latency_ms);
+                        countValue.textContent = data.metrics.total_inferences;
+
+                        // Transcript counters ride along with the VLM metrics
+                        if (data.metrics.transcript) {
+                            renderTranscriptState(data.metrics.transcript);
+                        }
+                    }
+                } else if (data.type === 'job_started') {
+                    renderJobProgress(data);
+                    updateStatus('Analysing video', 'processing');
+                } else if (data.type === 'job_paused' || data.type === 'job_resumed') {
+                    renderJobProgress(data);
+                    updateStatus(data.state === 'paused' ? 'Paused' : 'Analysing video',
+                                 data.state === 'paused' ? 'processing' : 'processing');
+                } else if (data.type === 'job_finished') {
+                    renderJobProgress(data);
+                    const done = data.state === 'completed';
+                    updateStatus(
+                        done ? `Finished - ${data.analyzed} descriptions` : `Analysis ${data.state}`,
+                        done ? 'connected' : 'disconnected'
+                    );
+                    if (data.error) {
+                        alert('The analysis stopped with an error: ' + data.error);
+                    }
+                } else if (data.type === 'gpu_stats') {
+                    window.lastSystemStats = data.stats;  // Store for theme changes
+
+                    // Throttle GPU stats updates based on configured interval
+                    const now = Date.now();
+                    const intervalMs = settings.gpuUpdateInterval * 1000;
+
+                    if (now - lastGPUUpdate >= intervalMs) {
+                        // Enough time has passed, update immediately
+                        updateGPUStats(data.stats);
+                        lastGPUUpdate = now;
+                        pendingGPUStats = null;
+                    } else {
+                        // Too soon, store for later update
+                        pendingGPUStats = data.stats;
+                    }
+                } else if (data.type === 'status') {
+                    // Don't show status messages in result balloon (too flashy)
+                    // Status is already shown in the header
+                } else if (data.type === 'server_config') {
+                    // Server sent its current configuration (model, api_base, prompt)
+                    if (data.model) {
+                        document.getElementById('modelName').textContent = data.model;
+                        // Also update the model select if it matches
+                        if (modelSelect.querySelector(`option[value="${data.model}"]`)) {
+                            modelSelect.value = data.model;
+                        }
+                    }
+                    if (data.api_base) {
+                        apiBaseUrl.value = data.api_base;
+                        checkApiKeyRequirement(data.api_base);
+                        updateSystemStatsVisibility(data.api_base);
+                    }
+                    // The server was started with a prompt and will use it for
+                    // every frame, so the editor has to show that one - not the
+                    // page's built-in default
+                    if (data.prompt && !isAnalysisRunning) {
+                        promptText.value = data.prompt;
+                        const preview = data.prompt.length > 150
+                            ? data.prompt.substring(0, 150) + '...'
+                            : data.prompt;
+                        currentPrompt.textContent = `Prompt: ${preview}`;
+                    }
+                    if (data.transcript) {
+                        renderTranscriptState(data.transcript);
+                    }
+                    // Server-side sampling defaults win on a fresh page, so the
+                    // UI shows what --step actually configured
+                    if (data.defaults && !currentJobId) {
+                        applyServerDefaults(data.defaults);
+                    }
+                    if (data.job) {
+                        // A job survives a page reload - pick it back up
+                        restoreJob(data.job);
+                    }
+                } else if (data.type === 'model_updated') {
+                    // Model was updated on server
+                    if (data.model) {
+                        document.getElementById('modelName').textContent = data.model;
+                        console.log('Model updated to:', data.model);
+                    }
+                } else if (data.type === 'prompt_updated') {
+                    // Prompt was updated on server (already handled in applyPrompt)
+                    console.log('Prompt updated:', data.prompt);
+                }
+            };
+
+            websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+
+            websocket.onclose = () => {
+                console.log('WebSocket disconnected, will reconnect...');
+                websocket = null;
+                updateStatus('Reconnecting...', 'disconnected');
+                setTimeout(connectWebSocket, 2000);
+            };
+        }
+
+        // ===== Starting, pausing and stopping the analysis =====
+
+        function applyServerDefaults(defaults) {
+            if (!defaults) return;
+            stepMode.value = defaults.step_mode === 'frames' ? 'frames' : 'seconds';
+            stepValue.value = defaults.step_mode === 'frames'
+                ? defaults.step_frames
+                : defaults.step_seconds;
+            if (defaults.max_width !== undefined) frameWidth.value = defaults.max_width;
+            carryContext.checked = !!defaults.carry_context;
+            updateStepHint();
+        }
+
+        // Reattach to a job that is already running on the server - the page
+        // may have been reloaded, or opened in a second tab mid-analysis
+        async function restoreJob(job) {
+            if (!job) return;
+
+            if (!currentVideo && job.video_info) {
+                setCurrentVideo({ ...job.video_info, url: `/api/video/file/${job.video_id}` });
+            }
+
+            applyServerDefaults({
+                step_mode: job.step_mode,
+                step_seconds: job.step_seconds,
+                step_frames: job.step_frames,
+                max_width: job.max_width,
+                carry_context: job.carry_context
+            });
+
+            try {
+                const resp = await fetch(`/api/video/results?job_id=${encodeURIComponent(job.job_id)}&limit=2000`);
+                const data = await resp.json();
+                timelineItems = data.results || [];
+                renderTimeline();
+
+                const last = timelineItems[timelineItems.length - 1];
+                if (last) {
+                    updateResultText(last.text);
+                    lastText = last.text;
+                    videoOverlay.textContent = `[${last.timecode}] ${last.text}`;
+                }
+            } catch (err) {
+                console.warn('Could not fetch existing results:', err);
+            }
+
+            renderJobProgress(job);
+        }
+
+        async function start() {
+            if (!currentVideo) {
+                alert('Load a video first');
+                return;
+            }
+
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+            }
+
+            // Each run starts from a clean timeline so the descriptions on
+            // screen always belong to the job the progress bar is reporting
+            clearTimeline();
+            lastText = '';
+            videoOverlay.textContent = '';
+            updateStatus('Starting analysis...', 'processing');
+
+            const body = {
+                video_id: currentVideo.video_id,
+                step_mode: stepMode.value,
+                max_width: parseInt(frameWidth.value) || 0,
+                carry_context: carryContext.checked,
+                start_s: parseFloat(startTime.value) || 0,
+                max_frames: parseInt(maxFrames.value) || 0,
+                prompt: promptText.value.trim(),
+                max_tokens: parseInt(maxTokens.value) || 512
+            };
+
+            if (stepMode.value === 'frames') {
+                body.step_frames = Math.max(1, Math.round(parseFloat(stepValue.value) || 30));
+            } else {
+                body.step_seconds = parseFloat(stepValue.value) || 2;
+            }
+
+            const end = parseFloat(endTime.value);
+            if (!isNaN(end) && end > 0) body.end_s = end;
+
+            startBtn.disabled = true;
+            try {
+                const resp = await fetch('/api/video/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    throw new Error(data.error || `Server returned ${resp.status}`);
+                }
+
+                renderJobProgress(data.job);
+                updateStatus('Analysing video', 'processing');
+
+                // Play alongside the analysis so the picture matches the text
+                videoElement.currentTime = body.start_s;
+                videoElement.play().catch(() => { /* autoplay may be blocked; harmless */ });
+            } catch (err) {
+                console.error('Could not start the analysis:', err);
+                updateStatus('Failed to start', 'disconnected');
+                setRunningState(false, false);
+                alert('Could not start the analysis: ' + err.message);
+            }
+        }
+
+        async function togglePause() {
+            if (!isAnalysisRunning) return;
+
+            pauseBtn.disabled = true;
+            try {
+                const resp = await fetch('/api/video/pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paused: !isPaused })
+                });
+                const data = await resp.json();
+                if (data.job) renderJobProgress(data.job);
+            } catch (err) {
+                console.error('Could not pause the analysis:', err);
+                pauseBtn.disabled = false;
+            }
+        }
+
+        async function stop() {
+            if (fadeTimeout) {
+                clearTimeout(fadeTimeout);
+                fadeTimeout = null;
+            }
+
+            stopBtn.disabled = true;
+            try {
+                const resp = await fetch('/api/video/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await resp.json();
+                if (data.job) renderJobProgress(data.job);
+            } catch (err) {
+                console.error('Could not stop the analysis:', err);
+            } finally {
+                setRunningState(false, false);
+                videoElement.pause();
+                updateStatus('Connected', 'connected');
+            }
+        }
+
+        // ===== Transcript (analysis logging) =====
+        const transcriptPanel = document.getElementById('transcriptPanel');
+        const transcriptDot = document.getElementById('transcriptDot');
+        const transcriptStatusText = document.getElementById('transcriptStatusText');
+        const transcriptRecords = document.getElementById('transcriptRecords');
+        const transcriptBackups = document.getElementById('transcriptBackups');
+        const transcriptErrors = document.getElementById('transcriptErrors');
+        const transcriptPath = document.getElementById('transcriptPath');
+        const transcriptBackupHint = document.getElementById('transcriptBackupHint');
+        const transcriptToggle = document.getElementById('transcriptToggle');
+        const transcriptBackupBtn = document.getElementById('transcriptBackupBtn');
+        const transcriptDownloadBtn = document.getElementById('transcriptDownloadBtn');
+        const recPill = document.getElementById('recPill');
+        const recPillLabel = document.getElementById('recPillLabel');
+        const recPillCount = document.getElementById('recPillCount');
+
+        // Suppresses the change handler while we set the toggle programmatically
+        let transcriptSyncing = false;
+        // Last known server-side recording state, for the header pill
+        let transcriptRecording = false;
+
+        function renderTranscriptState(stats) {
+            if (!stats) return;
+            transcriptPanel.style.display = '';
+
+            const recording = !!stats.enabled;
+            const hasErrors = (stats.errors || 0) > 0;
+
+            transcriptDot.className = 'transcript-dot' +
+                (hasErrors ? ' error' : (recording ? ' recording' : ''));
+            transcriptStatusText.textContent = hasErrors
+                ? 'Recording (write errors)'
+                : (recording ? 'Recording to disk' : 'Paused');
+
+            // Compact broadcasts use short keys; the full status uses long ones
+            const records = stats.records !== undefined ? stats.records : stats.records_written;
+            const backups = stats.backups !== undefined ? stats.backups : stats.backups_written;
+            if (records !== undefined) transcriptRecords.textContent = records;
+            if (backups !== undefined) transcriptBackups.textContent = backups;
+            if (stats.errors !== undefined) transcriptErrors.textContent = stats.errors;
+
+            if (stats.filename) {
+                transcriptPath.textContent = stats.filename;
+                transcriptPath.title = stats.path || stats.filename;
+            }
+            if (stats.backup_every !== undefined) {
+                transcriptBackupHint.textContent = stats.backup_every
+                    ? `Backup every ${stats.backup_every} records`
+                    : 'Automatic backups disabled';
+            }
+
+            if (transcriptToggle.checked !== recording) {
+                transcriptSyncing = true;
+                transcriptToggle.checked = recording;
+                transcriptSyncing = false;
+            }
+
+            // Header pill mirrors the same state and toggles the same setting
+            transcriptRecording = recording;
+            recPill.style.display = '';
+            const pillClasses = ['rec-pill'];
+            if (!recording) pillClasses.push('paused');
+            if (hasErrors) pillClasses.push('error');
+            recPill.className = pillClasses.join(' ');
+            recPillLabel.textContent = recording ? 'Rec' : 'Paused';
+            if (records !== undefined) recPillCount.textContent = records;
+            recPill.title = hasErrors
+                ? `${stats.errors} transcript write error(s) - see the Transcript panel`
+                : (recording
+                    ? 'Saving every analysis to disk - click to pause'
+                    : 'Recording paused - click to resume');
+        }
+
+        // On a fresh page load, ask the server whether anything is already
+        // running - the WebSocket server_config carries the same information,
+        // but this also recovers a job that finished while the page was closed
+        async function restoreExistingJob() {
+            try {
+                const resp = await fetch('/api/video/status');
+                const data = await resp.json();
+                if (data.job) await restoreJob(data.job);
+            } catch (err) {
+                console.warn('Could not read job status:', err);
+            }
+        }
+
+        async function refreshTranscriptStatus() {
+            try {
+                const resp = await fetch('/api/transcript/status');
+                const stats = await resp.json();
+                if (stats.available) {
+                    renderTranscriptState(stats);
+                } else {
+                    // Server started with --no-transcript: hide both controls
+                    transcriptPanel.style.display = 'none';
+                    recPill.style.display = 'none';
+                }
+            } catch (err) {
+                console.warn('Transcript status unavailable:', err);
+            }
+        }
+
+        async function setTranscriptEnabled(enabled) {
+            recPill.disabled = true;
+            try {
+                const resp = await fetch('/api/transcript/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+                renderTranscriptState(await resp.json());
+            } catch (err) {
+                console.error('Failed to change transcript recording:', err);
+                // Snap both controls back to the server's actual state
+                await refreshTranscriptStatus();
+            } finally {
+                recPill.disabled = false;
+            }
+        }
+
+        transcriptToggle.addEventListener('change', () => {
+            if (transcriptSyncing) return;
+            setTranscriptEnabled(transcriptToggle.checked);
+        });
+
+        recPill.addEventListener('click', () => setTranscriptEnabled(!transcriptRecording));
+
+        transcriptBackupBtn.addEventListener('click', async () => {
+            const original = transcriptBackupBtn.innerHTML;
+            transcriptBackupBtn.disabled = true;
+            try {
+                const resp = await fetch('/api/transcript/backup', { method: 'POST' });
+                const data = await resp.json();
+                renderTranscriptState(data);
+                transcriptBackupBtn.innerHTML = data.status === 'ok' ? 'Saved' : 'Nothing yet';
+            } catch (err) {
+                console.error('Backup failed:', err);
+                transcriptBackupBtn.innerHTML = 'Failed';
+            }
+            setTimeout(() => {
+                transcriptBackupBtn.innerHTML = original;
+                transcriptBackupBtn.disabled = false;
+                lucide.createIcons();
+            }, 1500);
+        });
+
+        transcriptDownloadBtn.addEventListener('click', () => {
+            window.location.href = '/api/transcript/download';
+        });
+
+        startBtn.addEventListener('click', start);
+        stopBtn.addEventListener('click', stop);
+        pauseBtn.addEventListener('click', togglePause);
+
+        // Load on page load
+        window.addEventListener('load', async () => {
+            // Detect services first, then fetch models
+            await detectServices();
+            fetchModels();
+            connectWebSocket();
+            refreshTranscriptStatus();
+            restoreExistingJob();
+
+            // Initialize prompt display
+            const initialPrompt = promptText.value.trim();
+            if (initialPrompt) {
+                const promptPreview = initialPrompt.length > 150 ? initialPrompt.substring(0, 150) + '...' : initialPrompt;
+                currentPrompt.textContent = `Prompt: ${promptPreview}`;
+            }
+
+            // Initialize Lucide icons
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
